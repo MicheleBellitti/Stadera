@@ -1,11 +1,6 @@
-[package]
-name = "stadera"
-version = "0.1.0"
-edition = "2024"
-
 [workspace]
 resolver = "2"
-members = ["src/crates/api"]
+members = ["crates/api"]
 
 [workspace.package]
 edition = "2024"

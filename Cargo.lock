@@ -228,10 +228,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "stadera"
-version = "0.1.0"
-
-[[package]]
 name = "stadera-api"
 version = "0.1.0"
 dependencies = [
