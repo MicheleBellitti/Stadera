@@ -1,0 +1,56 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    
+    steps:
+      # Pinned to v4.4.0 - https://github.com/googleapis/release-please-action/releases/tag/v4.4.0
+      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: release-please-manifest.json
+
+      # Optional: Add post-release steps here
+
+      - uses: actions/checkout@v4
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          fetch-depth: 0
+      
+      - name: Set up rust
+        uses: dtolnay/rust-toolchain@stable
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        if: ${{ steps.release.outputs.release_created }}
+
+#      - name: Build release binary
+#        if: ${{ steps.release.outputs.release_created }}
+#        run: |
+#          cargo build --release -p stadera-api
+#
+#      - name: Upload release artifact
+#        uses: actions/upload-artifact@v4
+#        if: ${{ steps.release.outputs.release_created }}
+#        with:
+#          name: stadera-api-${{ steps.release.outputs.tag_name }}-linux-amd64
+#          path: target/release/stadera-api
+#
+#

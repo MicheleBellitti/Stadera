@@ -1,6 +1,6 @@
 {
   "packages": {
-    ".": {
+    "crates/api": {
       "release-type": "rust",
       "package-name": "stadera-api",
       "include-component-in-tag": false,
