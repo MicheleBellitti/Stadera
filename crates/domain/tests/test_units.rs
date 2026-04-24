@@ -43,6 +43,13 @@ fn weight_try_from() {
     assert!(w.is_ok());
 }
 
+#[test]
+fn weight_deserialize_rejects_invalid() {
+    assert!(serde_json::from_str::<Weight>("-10.0").is_err());
+    assert!(serde_json::from_str::<Weight>("600.0").is_err());
+    assert!(serde_json::from_str::<Weight>("null").is_err());
+}
+
 // — BodyFatPercent —
 
 #[test]
@@ -74,6 +81,13 @@ fn body_fat_display() {
     assert_eq!(BodyFatPercent::new(15.0).unwrap().to_string(), "15.0%");
 }
 
+#[test]
+fn body_fat_deserialize_rejects_invalid() {
+    assert!(serde_json::from_str::<BodyFatPercent>("-10.0").is_err());
+    assert!(serde_json::from_str::<BodyFatPercent>("600.0").is_err());
+    assert!(serde_json::from_str::<BodyFatPercent>("null").is_err());
+}
+
 // — LeanMass —
 
 #[test]
@@ -97,6 +111,13 @@ fn lean_mass_display() {
     assert_eq!(LeanMass::new(60.0).unwrap().to_string(), "60.0 kg");
 }
 
+#[test]
+fn lean_mass_deserialize_rejects_invalid() {
+    assert!(serde_json::from_str::<LeanMass>("-10.0").is_err());
+    assert!(serde_json::from_str::<LeanMass>("600.0").is_err());
+    assert!(serde_json::from_str::<LeanMass>("null").is_err());
+}
+
 // — Height —
 
 #[test]
@@ -118,6 +139,13 @@ fn height_rejects_above_limit() {
 #[test]
 fn height_display() {
     assert_eq!(Height::new(175.0).unwrap().to_string(), "175.0 cm");
+}
+
+#[test]
+fn height_deserialize_rejects_invalid() {
+    assert!(serde_json::from_str::<Height>("-10.0").is_err());
+    assert!(serde_json::from_str::<Height>("600.0").is_err());
+    assert!(serde_json::from_str::<Height>("null").is_err());
 }
 
 // — Property tests —
