@@ -8,6 +8,8 @@ pub mod repositories;
 mod rows;
 
 pub use error::{StorageError, StorageResult};
+pub use repositories::user::User;
+pub use repositories::withings_credentials::WithingsCredentials;
 
 use sqlx::PgPool;
 
