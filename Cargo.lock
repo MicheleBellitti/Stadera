@@ -650,7 +650,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "storage"
+name = "stadera-storage"
 version = "0.1.0"
 
 [[package]]
