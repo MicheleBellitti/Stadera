@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/api"]
+members = ["crates/api", "crates/domain"]
 
 [workspace.package]
 edition = "2024"
@@ -8,9 +8,10 @@ license = "MIT"
 repository = "https://github.com/MicheleBellitti/stadera"
 
 [workspace.dependencies]
-# qui centralizzeremo le dep condivise in M2+
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
 thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
