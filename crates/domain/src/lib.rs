@@ -11,7 +11,7 @@ pub mod user;
 
 pub use energy::DailyTarget;
 pub use error::DomainError;
-pub use measurement::Measurement;
+pub use measurement::{Measurement, Source};
 pub use trend::WeightTrend;
 pub use units::{BodyFatPercent, Height, LeanMass, Weight};
 pub use user::{ActivityLevel, Sex, UserProfile};

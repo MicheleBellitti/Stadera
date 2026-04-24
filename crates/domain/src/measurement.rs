@@ -4,11 +4,18 @@ use serde::{Deserialize, Serialize};
 use crate::units::{BodyFatPercent, Height, LeanMass, Weight};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Source {
+    Withings,
+    Manual,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Measurement {
     pub taken_at: DateTime<Utc>,
     pub weight: Weight,
     pub body_fat: Option<BodyFatPercent>,
     pub lean_mass: Option<LeanMass>,
+    pub source: Source,
 }
 
 impl Measurement {
@@ -17,12 +24,14 @@ impl Measurement {
         weight: Weight,
         body_fat: Option<BodyFatPercent>,
         lean_mass: Option<LeanMass>,
+        source: Source,
     ) -> Self {
         Self {
             taken_at,
             weight,
             body_fat,
             lean_mass,
+            source,
         }
     }
 

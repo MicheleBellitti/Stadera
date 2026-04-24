@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/api", "crates/domain"]
+members = ["crates/api", "crates/domain", "crates/storage"]
 
 [workspace.package]
 edition = "2024"
@@ -15,3 +15,15 @@ serde = { version = "1", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# database
+sqlx = { version = "0.8", default-features = false, features = [
+    "postgres",
+    "runtime-tokio",
+    "tls-rustls",
+    "chrono",
+    "uuid",
+    "macros",
+    "migrate",
+] }
+uuid = { version = "1", features = ["v7", "serde"] }
+serde_json = "1"
