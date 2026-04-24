@@ -5,7 +5,7 @@ use crate::units::{BodyFatPercent, Height, LeanMass, Weight};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Source{
+pub enum Source {
     Withings,
     Manual,
 }
@@ -32,7 +32,6 @@ impl Measurement {
             body_fat,
             lean_mass,
             source,
-
         }
     }
 
