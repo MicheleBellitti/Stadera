@@ -70,8 +70,8 @@ stadera/
 | ID | Name | Status | Notes |
 |---|---|---|---|
 | M1 | Foundations | ✅ Done | Workspace, CI, release-please, conventional commits |
-| M2 | Domain core | ⏳ In review | PR #2 open. 3 blockers to fix — see `reviews/pr-2.md` |
-| M3 | Storage | ⏸ Next | Postgres schema, sqlx migrations, repository pattern, Docker compose for local dev |
+| M2 | Domain core | ✅ Done | Merged via PR #2 (squashed into `1507c18`). Domain blockers resolved. Follow-ups tracked in `reviews/pr-2.md` |
+| M3 | Storage | ⏳ In progress | Split into 2 PRs: `feat/storage-scaffold` (schema+compose+migrations) then `feat/storage-repositories` (repo pattern + tests) |
 | M4 | Withings integration | 📋 Planned | OAuth2 flow, token refresh, API client, sync binary. Multi-tenant DB schema ready |
 | M5 | API + Frontend | 📋 Planned | axum endpoints (`/today`, `/trend`, `/history`), OAuth Google auth middleware, utoipa/Swagger. `stadera-web` repo scaffolded |
 | M6 | Notifications | 📋 Planned | Pushover daily job, Resend weekly digest (Apple-weekly-summary style) |
@@ -92,13 +92,18 @@ stadera/
 - All domain values are newtypes with validating constructors. No raw `f64`/`i64` at the domain boundary.
 - Tests in `tests/` dir (integration-test style) instead of inline `#[cfg(test)]` — forces testing through the public API.
 
-### Storage layer (M3 decisions pending)
+### Storage layer (M3) — resolved
 
-Open questions to resolve when starting M3:
-- Repository pattern via traits (for testability) vs. direct `sqlx` calls in services?
-- Migration strategy: `sqlx migrate` CLI vs. a lib-level migration runner at startup?
-- Connection pooling config — `sqlx::PgPool` defaults or custom sizing for Cloud Run (scale-to-zero → cold starts)?
-- Docker compose for local Postgres 16? (probably yes)
+- **Repository pattern**: concrete structs (`PgMeasurementRepository`, …), no traits for now. Integration tests against a real DB. Traits only when a mock actually becomes necessary.
+- **Migrations lifecycle**: `sqlx migrate` CLI for local dev + `sqlx::migrate!().run(&pool)` inside the binary on startup (Cloud Run self-migrates on cold start). Same `migrations/` directory feeds both.
+- **Connection pool**: `max_connections = 10`, `connect_timeout = 5s`. Tuned finer in M7 when observing actual load on Cloud Run + Neon pooler.
+- **Dev env**: `compose.yaml` with Postgres 16, root-level `Makefile` for `db-up` / `db-down` / `db-migrate` / `db-reset` / `db-psql`.
+- **Schema**: UUID v7 for PKs (time-ordered, cloud-native), `timestamptz` for all temporal columns, `varchar + CHECK` for enums (easier to evolve than native Postgres enum).
+- **Tables in M3**: `users`, `user_profiles`, `measurements`, `withings_credentials`. The last one is pre-provisioned even though its usage lands in M4 — avoids an extra migration PR.
+- **Domain ↔ SQL mapping**: repository performs `Weight::try_from(f64)?` on read; returns `StorageError::Corruption` if the DB produced an invalid value (should not happen, but explicit).
+- **`Measurement::source`** (`Withings` | `Manual`): extended in the domain now to avoid a second-wave domain bump in M4.
+- **Withings token encryption**: column `BYTEA` in M3; encryption logic lands in M4 together with the OAuth flow (key from Secret Manager).
+- **Integration tests**: `sqlx::test` macro (lighter than testcontainers). Requires a reachable `DATABASE_URL` in CI — add a `postgres` service to `ci.yml`.
 
 ### Notifications (M6 decisions pending)
 
@@ -106,11 +111,12 @@ Open questions to resolve when starting M3:
 - Weekly digest email: Sunday evening or Monday morning?
 - Email template: HTML with MJML, or plain-ish styled?
 
-### Cloud (M7 decisions pending)
+### Cloud (M7 — partially resolved)
 
-- Single GCP project or separate for Stadera?
-- Custom domain from day 1 or `.run.app` URL?
-- Staging/preview envs on Vercel previews only, backend always single-env?
+- **GCP project**: `stadera-prod` (single project, single env — matches the single-env decision).
+- **Neon layout**: 1 project `stadera`, default `main` branch (Neon's copy-on-write branches), database `stadera`, dedicated role `stadera_app` (least privilege, not the `neondb_owner`). Neon branching available for preview envs in the future, out-of-scope for now.
+- **Custom domain** vs `.run.app`: still open. Decide in M7.
+- **Preview envs**: Vercel previews on frontend PRs; backend stays single-env (feature branches test locally against Docker).
 
 ## Conventions (quick reference)
 
