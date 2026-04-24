@@ -1,5 +1,5 @@
 use chrono::{NaiveDate, TimeDelta, TimeZone, Utc};
-use stadera_domain::measurement::Measurement;
+use stadera_domain::measurement::{Measurement, Source};
 use stadera_domain::trend::{compute_trend, estimate_goal_date};
 use stadera_domain::units::Weight;
 
@@ -9,6 +9,7 @@ fn make_measurement(date: NaiveDate, weight_kg: f64) -> Measurement {
         Weight::new(weight_kg).unwrap(),
         None,
         None,
+        Source::Withings,
     )
 }
 
