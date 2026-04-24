@@ -1,3 +1,5 @@
 {
-  "crates/api": "0.1.0"
+  "crates/api":     "0.1.0",
+  "crates/domain":  "0.1.0",
+  "crates/storage": "0.1.0"
 }
