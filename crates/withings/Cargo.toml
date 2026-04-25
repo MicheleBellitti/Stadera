@@ -6,3 +6,26 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+stadera-domain = { path = "../domain" }
+stadera-storage = { path = "../storage" }
+reqwest.workspace = true
+oauth2.workspace = true
+aes-gcm.workspace = true
+rand.workspace = true
+hex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio.workspace = true
+sqlx.workspace = true
+url.workspace = true
+clap.workspace = true
+uuid.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+wiremock.workspace = true
+tokio = { workspace = true }

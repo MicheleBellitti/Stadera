@@ -27,3 +27,17 @@ sqlx = { version = "0.8", default-features = false, features = [
 ] }
 uuid = { version = "1", features = ["v7", "serde"] }
 serde_json = "1"
+# http client
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "gzip"] }
+# oauth2 RFC 6749 client
+oauth2 = "5"
+# AEAD symmetric encryption for stored tokens
+aes-gcm = "0.10"
+rand = "0.9"
+hex = "0.4"
+# url parsing (callback handling in pair binary)
+url = "2"
+# CLI argument parsing for binaries
+clap = { version = "4", features = ["derive"] }
+# HTTP mocking for tests
+wiremock = "0.6"

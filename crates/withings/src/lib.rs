@@ -13,5 +13,6 @@ pub mod error;
 pub mod oauth;
 pub mod types;
 
-// Re-exports (e.g. `WithingsError`) added during the implementation step,
-// once the types in the module skeletons exist.
+pub use client::WithingsClient;
+pub use error::{WithingsError, WithingsResult};
+pub use oauth::{TokenResponse, WithingsOauth};
