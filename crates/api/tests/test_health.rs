@@ -4,9 +4,11 @@ use http_body_util::BodyExt;
 use sqlx::PgPool;
 use tower::ServiceExt;
 
-#[sqlx::test]
+mod common;
+
+#[sqlx::test(migrations = "../storage/migrations")]
 async fn health_returns_200_ok_json(pool: PgPool) {
-    let state = stadera_api::AppState::new(pool);
+    let state = stadera_api::AppState::new(pool, common::test_config());
     let app = stadera_api::router(state);
 
     let response = app
@@ -26,9 +28,9 @@ async fn health_returns_200_ok_json(pool: PgPool) {
     assert_eq!(body, serde_json::json!({ "status": "ok" }));
 }
 
-#[sqlx::test]
+#[sqlx::test(migrations = "../storage/migrations")]
 async fn unknown_route_returns_404(pool: PgPool) {
-    let state = stadera_api::AppState::new(pool);
+    let state = stadera_api::AppState::new(pool, common::test_config());
     let app = stadera_api::router(state);
 
     let response = app

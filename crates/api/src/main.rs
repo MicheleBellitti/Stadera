@@ -24,14 +24,15 @@ async fn main() -> Result<()> {
         .await
         .context("failed to connect to Postgres")?;
 
-    let state = AppState::new(pool);
+    let bind_addr = config.bind_addr;
+    let state = AppState::new(pool, config);
     let app = router(state);
 
-    let listener = TcpListener::bind(config.bind_addr)
+    let listener = TcpListener::bind(bind_addr)
         .await
-        .with_context(|| format!("failed to bind to {}", config.bind_addr))?;
+        .with_context(|| format!("failed to bind to {bind_addr}"))?;
 
-    tracing::info!(addr = %config.bind_addr, "stadera-api listening");
+    tracing::info!(addr = %bind_addr, "stadera-api listening");
 
     axum::serve(listener, app).await.context("server error")?;
     Ok(())

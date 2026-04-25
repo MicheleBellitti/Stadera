@@ -45,6 +45,9 @@ wiremock = "0.6"
 dotenvy = "0.15"
 # axum HTTP framework + middleware
 axum = { version = "0.7", features = ["macros"] }
+axum-extra = { version = "0.9", features = ["cookie"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace", "timeout"] }
 http-body-util = "0.1"
+# cookie crate uses `time::Duration` for max_age
+time = "0.3"
