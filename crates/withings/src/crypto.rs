@@ -25,6 +25,10 @@ use aes_gcm::{
 };
 use rand::RngCore;
 
+// Re-export so downstream crates (e.g. `stadera-jobs`) can pass cipher
+// references around without taking a direct dependency on `aes-gcm`.
+pub use aes_gcm::Aes256Gcm as Cipher;
+
 use crate::error::{WithingsError, WithingsResult};
 
 /// Length of the AES-256 master key, in bytes.

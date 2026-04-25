@@ -75,6 +75,47 @@ impl<'a> PgMeasurementRepository<'a> {
         Ok(ids)
     }
 
+    /// Idempotent batch insert: rows already present (matched on the UNIQUE
+    /// `(user_id, taken_at, source)` key) are silently skipped. Returns the
+    /// number of rows actually inserted (`total - duplicates`). Wrapped in a
+    /// transaction for the same atomicity guarantee as [`Self::insert_batch`].
+    ///
+    /// This is the method the Withings sync job uses: re-running the same
+    /// 7-day window leaves the database unchanged for already-known
+    /// measurements, while picking up genuinely new ones.
+    #[instrument(skip(self, measurements))]
+    pub async fn insert_or_skip_batch(
+        &self,
+        user_id: Uuid,
+        measurements: &[Measurement],
+    ) -> StorageResult<usize> {
+        let mut tx = self.pool.begin().await?;
+        let mut inserted = 0usize;
+        for m in measurements {
+            let id = Uuid::now_v7();
+            let result = sqlx::query!(
+                r#"
+                INSERT INTO measurements
+                    (id, user_id, taken_at, weight_kg, body_fat_percent, lean_mass_kg, source)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (user_id, taken_at, source) DO NOTHING
+                "#,
+                id,
+                user_id,
+                m.taken_at,
+                m.weight.value(),
+                m.body_fat.map(|bf| bf.value()),
+                m.lean_mass.map(|lm| lm.value()),
+                source_to_str(m.source),
+            )
+            .execute(&mut *tx)
+            .await?;
+            inserted += result.rows_affected() as usize;
+        }
+        tx.commit().await?;
+        Ok(inserted)
+    }
+
     #[instrument(skip(self))]
     pub async fn get_by_id(&self, id: Uuid) -> StorageResult<Option<Measurement>> {
         let row = sqlx::query_as!(

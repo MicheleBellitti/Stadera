@@ -6,6 +6,7 @@
   "packages": {
     "crates/api":      { "package-name": "stadera-api",      "component": "api"      },
     "crates/domain":   { "package-name": "stadera-domain",   "component": "domain"   },
+    "crates/jobs":     { "package-name": "stadera-jobs",     "component": "jobs"     },
     "crates/storage":  { "package-name": "stadera-storage",  "component": "storage"  },
     "crates/withings": { "package-name": "stadera-withings", "component": "withings" }
   }
