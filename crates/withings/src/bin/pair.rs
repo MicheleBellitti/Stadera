@@ -33,6 +33,10 @@ const SCOPES: &[&str] = &["user.metrics"];
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Auto-load `.env` from cwd (or any ancestor). No-op in production where the
+    // file is absent — env vars are injected by the runtime (Cloud Run secrets).
+    let _ = dotenvy::dotenv();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),

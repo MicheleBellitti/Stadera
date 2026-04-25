@@ -2296,6 +2296,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "dotenvy",
  "hex",
  "oauth2",
  "rand 0.9.4",

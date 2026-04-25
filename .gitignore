@@ -4,3 +4,5 @@
 .env.local
 
 .DS_Store
+
+.secrets

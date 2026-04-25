@@ -41,3 +41,5 @@ url = "2"
 clap = { version = "4", features = ["derive"] }
 # HTTP mocking for tests
 wiremock = "0.6"
+# .env auto-load for setup binaries
+dotenvy = "0.15"
