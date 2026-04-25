@@ -72,8 +72,8 @@ stadera/
 | M1 | Foundations | ✅ Done | Workspace, CI, release-please, conventional commits |
 | M2 | Domain core | ✅ Done | Merged via PR #2 (squashed into `1507c18`). Domain blockers resolved. Follow-ups tracked in `reviews/pr-2.md` |
 | M3 | Storage | ✅ Done | Both PRs merged: scaffold (#3) and repositories+tests (#5). Closed `1507c18..4730651` |
-| M4 | Withings integration | ⏳ In progress | PR A `feat/withings-scaffold` merged (#6): OAuth2 + API client + crypto + pair binary. PR B `feat/sync-job` open: `crates/jobs` cron binary that syncs measurements end-to-end |
-| M5 | API + Frontend | 📋 Planned | axum endpoints (`/today`, `/trend`, `/history`), OAuth Google auth middleware, utoipa/Swagger. `stadera-web` repo scaffolded |
+| M4 | Withings integration | ✅ Done | Both PRs merged: OAuth + API client + pair binary (#6), sync cron job + idempotent persistence (#7). End-to-end sync verified locally via `make sync` |
+| M5 | API + Frontend | ⏳ In progress | Backend split into 4 PRs: api scaffold, Google OAuth + sessions, domain endpoints, OpenAPI. Frontend in separate `stadera-web` repo (Next.js, Claude-implemented) |
 | M6 | Notifications | 📋 Planned | Pushover daily job, Resend weekly digest (Apple-weekly-summary style) |
 | M7 | Cloud deploy | 📋 Planned | Terraform, GitHub Actions deploy, Dockerfile multi-stage, Vercel for frontend |
 

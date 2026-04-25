@@ -43,3 +43,8 @@ clap = { version = "4", features = ["derive"] }
 wiremock = "0.6"
 # .env auto-load for setup binaries
 dotenvy = "0.15"
+# axum HTTP framework + middleware
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "timeout"] }
+http-body-util = "0.1"
