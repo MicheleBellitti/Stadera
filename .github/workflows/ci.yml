@@ -15,6 +15,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  DATABASE_URL: postgres://stadera:stadera@localhost:5432/stadera
 
 jobs:
   fmt:
@@ -34,6 +35,20 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: stadera
+          POSTGRES_PASSWORD: stadera
+          POSTGRES_DB: stadera
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -45,12 +60,32 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres,rustls
+
+      - name: Run migrations
+        run: sqlx migrate run --source crates/storage/migrations
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
   test:
     name: Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: stadera
+          POSTGRES_PASSWORD: stadera
+          POSTGRES_DB: stadera
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +94,12 @@ jobs:
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres,rustls
+
+      - name: Run migrations
+        run: sqlx migrate run --source crates/storage/migrations
 
       - name: Run tests
         run: cargo test --all --all-features

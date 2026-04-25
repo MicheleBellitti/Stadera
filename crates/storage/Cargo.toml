@@ -6,3 +6,13 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+stadera-domain = { path = "../domain" }
+sqlx.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true }

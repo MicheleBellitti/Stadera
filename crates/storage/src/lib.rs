@@ -1,14 +1,42 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+//! Stadera storage layer: Postgres repositories for the domain types.
+//!
+//! Boundary between pure domain (`stadera-domain`) and the database.
+//! All I/O lives here.
+
+pub mod error;
+pub mod repositories;
+mod rows;
+
+pub use error::{StorageError, StorageResult};
+pub use repositories::user::User;
+pub use repositories::withings_credentials::WithingsCredentials;
+
+use sqlx::PgPool;
+
+use repositories::{
+    measurement::PgMeasurementRepository, user::PgUserRepository,
+    user_profile::PgUserProfileRepository, withings_credentials::PgWithingsCredentialsRepository,
+};
+
+pub struct StorageContext {
+    pool: PgPool,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl StorageContext {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    pub fn measurements(&self) -> PgMeasurementRepository<'_> {
+        PgMeasurementRepository::new(&self.pool)
+    }
+    pub fn users(&self) -> PgUserRepository<'_> {
+        PgUserRepository::new(&self.pool)
+    }
+    pub fn user_profiles(&self) -> PgUserProfileRepository<'_> {
+        PgUserProfileRepository::new(&self.pool)
+    }
+    pub fn withings_credentials(&self) -> PgWithingsCredentialsRepository<'_> {
+        PgWithingsCredentialsRepository::new(&self.pool)
     }
 }
