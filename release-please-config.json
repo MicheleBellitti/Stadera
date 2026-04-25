@@ -4,8 +4,9 @@
   "separate-pull-requests": false,
   "include-component-in-tag": true,
   "packages": {
-    "crates/api":     { "package-name": "stadera-api",     "component": "api"     },
-    "crates/domain":  { "package-name": "stadera-domain",  "component": "domain"  },
-    "crates/storage": { "package-name": "stadera-storage", "component": "storage" }
+    "crates/api":      { "package-name": "stadera-api",      "component": "api"      },
+    "crates/domain":   { "package-name": "stadera-domain",   "component": "domain"   },
+    "crates/storage":  { "package-name": "stadera-storage",  "component": "storage"  },
+    "crates/withings": { "package-name": "stadera-withings", "component": "withings" }
   }
 }
