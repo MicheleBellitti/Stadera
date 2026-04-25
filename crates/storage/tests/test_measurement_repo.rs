@@ -212,3 +212,32 @@ async fn insert_batch(pool: PgPool) -> sqlx::Result<()> {
     assert_eq!(all.len(), 3);
     Ok(())
 }
+
+#[sqlx::test]
+async fn insert_batch_rolls_back_on_failure(pool: PgPool) -> sqlx::Result<()> {
+    let ctx = StorageContext::new(pool);
+
+    // A user_id not present in `users` → FK violation on the first INSERT,
+    // which should abort the transaction and leave no partial state.
+    let fake_user_id = Uuid::now_v7();
+    let measurements: Vec<Measurement> = (20u32..=22).map(sample_measurement).collect();
+
+    let result = ctx
+        .measurements()
+        .insert_batch(fake_user_id, &measurements)
+        .await;
+    assert!(result.is_err(), "expected FK violation to fail the batch");
+
+    // Create a real user afterward: no rows should have leaked into `measurements`.
+    let real_user_id = create_test_user(&ctx).await;
+    let all = ctx
+        .measurements()
+        .list_for_user_latest(real_user_id, 100)
+        .await
+        .unwrap();
+    assert!(
+        all.is_empty(),
+        "rollback should have left the measurements table empty for any user"
+    );
+    Ok(())
+}

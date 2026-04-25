@@ -38,16 +38,40 @@ impl<'a> PgMeasurementRepository<'a> {
         Ok(id)
     }
 
+    /// Atomic batch insert: all measurements succeed or none are persisted.
+    /// Wraps the loop in a transaction so a mid-batch failure rolls back
+    /// every prior insert in the same call — safe to retry the full batch
+    /// without creating duplicates (new UUIDs would otherwise be generated
+    /// for already-inserted rows).
     #[instrument(skip(self, measurements))]
     pub async fn insert_batch(
         &self,
         user_id: Uuid,
         measurements: &[Measurement],
     ) -> StorageResult<Vec<Uuid>> {
+        let mut tx = self.pool.begin().await?;
         let mut ids = Vec::with_capacity(measurements.len());
         for m in measurements {
-            ids.push(self.insert(user_id, m).await?);
+            let id = Uuid::now_v7();
+            sqlx::query!(
+                r#"
+                INSERT INTO measurements
+                    (id, user_id, taken_at, weight_kg, body_fat_percent, lean_mass_kg, source)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                "#,
+                id,
+                user_id,
+                m.taken_at,
+                m.weight.value(),
+                m.body_fat.map(|bf| bf.value()),
+                m.lean_mass.map(|lm| lm.value()),
+                source_to_str(m.source),
+            )
+            .execute(&mut *tx)
+            .await?;
+            ids.push(id);
         }
+        tx.commit().await?;
         Ok(ids)
     }
 
