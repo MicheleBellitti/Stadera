@@ -8,13 +8,14 @@ pub mod repositories;
 mod rows;
 
 pub use error::{StorageError, StorageResult};
+pub use repositories::session::Session;
 pub use repositories::user::User;
 pub use repositories::withings_credentials::WithingsCredentials;
 
 use sqlx::PgPool;
 
 use repositories::{
-    measurement::PgMeasurementRepository, user::PgUserRepository,
+    measurement::PgMeasurementRepository, session::PgSessionRepository, user::PgUserRepository,
     user_profile::PgUserProfileRepository, withings_credentials::PgWithingsCredentialsRepository,
 };
 
@@ -38,5 +39,9 @@ impl StorageContext {
     }
     pub fn withings_credentials(&self) -> PgWithingsCredentialsRepository<'_> {
         PgWithingsCredentialsRepository::new(&self.pool)
+    }
+
+    pub fn sessions(&self) -> PgSessionRepository<'_> {
+        PgSessionRepository::new(&self.pool)
     }
 }

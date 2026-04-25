@@ -6,11 +6,13 @@
 //!
 //! Module map:
 //! - [`config`]: typed config loaded from environment variables.
-//! - [`state`]: [`AppState`] shared across handlers (`Clone` cheap, internally `Arc`-backed).
+//! - [`state`]: [`AppState`] shared across handlers.
 //! - [`error`]: [`AppError`] + `IntoResponse` impl. Internal failures
 //!   are logged but never leaked to clients.
+//! - [`auth`]: Google OAuth flow, cookies, [`auth::AuthUser`] extractor.
 //! - [`routes`]: per-resource route trees, composed in [`router`].
 
+pub mod auth;
 pub mod config;
 pub mod error;
 pub mod routes;
@@ -22,23 +24,45 @@ pub use state::AppState;
 use std::time::Duration;
 
 use axum::Router;
-use axum::http::StatusCode;
+use axum::http::{HeaderName, HeaderValue, Method, StatusCode, header};
 use tower_http::cors::CorsLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
 /// Build the top-level router with all layers wired up.
-///
-/// Tightening of [`CorsLayer::permissive`] to a strict allow-list happens
-/// in M5 PR B once the frontend deploy URL is known.
 pub fn router(state: AppState) -> Router {
+    let cors = build_cors(&state.config.frontend_origin);
+
     Router::new()
         .merge(routes::health::routes())
+        .merge(routes::auth::routes())
+        .merge(routes::me::routes())
         .with_state(state)
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(30),
         ))
         .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive())
+        .layer(cors)
+}
+
+/// CORS layer scoped to the configured frontend origin, with credentials
+/// (cookies) enabled. Browsers will only accept `Access-Control-Allow-Origin`
+/// echoing a specific origin (not `*`) when credentials are involved.
+fn build_cors(frontend_origin: &str) -> CorsLayer {
+    let allowed_origin: HeaderValue = frontend_origin
+        .parse()
+        .expect("FRONTEND_ORIGIN must be a valid header value");
+    let allowed_headers: [HeaderName; 2] = [header::CONTENT_TYPE, header::ACCEPT];
+    CorsLayer::new()
+        .allow_origin(allowed_origin)
+        .allow_credentials(true)
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers(allowed_headers)
 }
