@@ -71,8 +71,8 @@ stadera/
 |---|---|---|---|
 | M1 | Foundations | ✅ Done | Workspace, CI, release-please, conventional commits |
 | M2 | Domain core | ✅ Done | Merged via PR #2 (squashed into `1507c18`). Domain blockers resolved. Follow-ups tracked in `reviews/pr-2.md` |
-| M3 | Storage | ⏳ In progress | PR A `feat/storage-scaffold` merged (#3). PR B `feat/storage-repositories` open: repositories + integration tests + CI Postgres service |
-| M4 | Withings integration | 📋 Planned | OAuth2 flow, token refresh, API client, sync binary. Multi-tenant DB schema ready |
+| M3 | Storage | ✅ Done | Both PRs merged: scaffold (#3) and repositories+tests (#5). Closed `1507c18..4730651` |
+| M4 | Withings integration | ⏳ In progress | OAuth2 flow + Health Mate API client + token refresh (`crates/withings`) and sync cron binary (`crates/jobs`). Multi-tenant DB schema ready since M3 |
 | M5 | API + Frontend | 📋 Planned | axum endpoints (`/today`, `/trend`, `/history`), OAuth Google auth middleware, utoipa/Swagger. `stadera-web` repo scaffolded |
 | M6 | Notifications | 📋 Planned | Pushover daily job, Resend weekly digest (Apple-weekly-summary style) |
 | M7 | Cloud deploy | 📋 Planned | Terraform, GitHub Actions deploy, Dockerfile multi-stage, Vercel for frontend |
