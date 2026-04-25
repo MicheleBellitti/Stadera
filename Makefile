@@ -1,4 +1,7 @@
-.PHONY: help db-up db-down db-reset db-migrate db-psql check
+.PHONY: help db-up db-down db-reset db-migrate db-psql check pair sync
+
+# Default user-email for pair / sync. Override with: make pair USER_EMAIL=alice@example.com
+USER_EMAIL ?= michelebellitti78@gmail.com
 
 help:
 	@echo "Dev targets:"
@@ -7,6 +10,8 @@ help:
 	@echo "  db-reset     Destroy volume and recreate + migrate"
 	@echo "  db-migrate   Run sqlx migrations against local DB"
 	@echo "  db-psql      Open psql shell into local DB"
+	@echo "  pair         Run first-time Withings OAuth pairing (USER_EMAIL=...)"
+	@echo "  sync         Run a one-shot Withings sync (USER_EMAIL=...)"
 	@echo "  check        cargo fmt + clippy + test"
 
 db-up:
@@ -28,6 +33,12 @@ db-migrate:
 
 db-psql:
 	docker compose exec postgres psql -U stadera -d stadera
+
+pair:
+	cargo run -p stadera-withings --bin pair -- --user-email $(USER_EMAIL)
+
+sync:
+	cargo run -p stadera-jobs -- sync --user-email $(USER_EMAIL)
 
 check:
 	cargo fmt --all -- --check

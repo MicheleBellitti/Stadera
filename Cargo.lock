@@ -2275,6 +2275,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "stadera-jobs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "dotenvy",
+ "sqlx",
+ "stadera-domain",
+ "stadera-storage",
+ "stadera-withings",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "stadera-storage"
 version = "0.1.0"
 dependencies = [

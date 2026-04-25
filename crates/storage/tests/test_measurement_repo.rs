@@ -241,3 +241,88 @@ async fn insert_batch_rolls_back_on_failure(pool: PgPool) -> sqlx::Result<()> {
     );
     Ok(())
 }
+
+#[sqlx::test]
+async fn insert_or_skip_batch_inserts_new(pool: PgPool) -> sqlx::Result<()> {
+    let ctx = StorageContext::new(pool);
+    let user_id = create_test_user(&ctx).await;
+
+    let measurements: Vec<Measurement> = (20u32..=22).map(sample_measurement).collect();
+    let inserted = ctx
+        .measurements()
+        .insert_or_skip_batch(user_id, &measurements)
+        .await
+        .unwrap();
+
+    assert_eq!(inserted, 3, "all three rows are new");
+    let all = ctx
+        .measurements()
+        .list_for_user_latest(user_id, 10)
+        .await
+        .unwrap();
+    assert_eq!(all.len(), 3);
+    Ok(())
+}
+
+#[sqlx::test]
+async fn insert_or_skip_batch_skips_duplicates(pool: PgPool) -> sqlx::Result<()> {
+    let ctx = StorageContext::new(pool);
+    let user_id = create_test_user(&ctx).await;
+
+    let measurements: Vec<Measurement> = (20u32..=22).map(sample_measurement).collect();
+
+    // First call: 3 inserts.
+    let first = ctx
+        .measurements()
+        .insert_or_skip_batch(user_id, &measurements)
+        .await
+        .unwrap();
+    assert_eq!(first, 3);
+
+    // Second call with the exact same payload: zero inserts (all conflicts).
+    let second = ctx
+        .measurements()
+        .insert_or_skip_batch(user_id, &measurements)
+        .await
+        .unwrap();
+    assert_eq!(second, 0);
+
+    // Total rows in DB: still 3, not 6.
+    let all = ctx
+        .measurements()
+        .list_for_user_latest(user_id, 100)
+        .await
+        .unwrap();
+    assert_eq!(all.len(), 3);
+    Ok(())
+}
+
+#[sqlx::test]
+async fn insert_or_skip_batch_mixes_new_and_existing(pool: PgPool) -> sqlx::Result<()> {
+    let ctx = StorageContext::new(pool);
+    let user_id = create_test_user(&ctx).await;
+
+    // Pre-populate with days 20..=21.
+    let pre: Vec<Measurement> = (20u32..=21).map(sample_measurement).collect();
+    ctx.measurements()
+        .insert_or_skip_batch(user_id, &pre)
+        .await
+        .unwrap();
+
+    // Now feed days 20..=23: days 20-21 are duplicates, days 22-23 are new.
+    let mixed: Vec<Measurement> = (20u32..=23).map(sample_measurement).collect();
+    let inserted = ctx
+        .measurements()
+        .insert_or_skip_batch(user_id, &mixed)
+        .await
+        .unwrap();
+    assert_eq!(inserted, 2, "only the two new days are inserted");
+
+    let all = ctx
+        .measurements()
+        .list_for_user_latest(user_id, 100)
+        .await
+        .unwrap();
+    assert_eq!(all.len(), 4);
+    Ok(())
+}
