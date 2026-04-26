@@ -60,7 +60,7 @@ stadera/
 | Database | Neon Postgres (serverless, free tier) |
 | Secrets | GCP Secret Manager |
 | IaC | Terraform |
-| Frontend | Vercel |
+| Frontend | Cloud Run (containerized Next.js, scale-to-zero) — single GCP for backend + frontend |
 | Logging | Native GCP (no Sentry for now) |
 | Observability | Cloud Logging / Cloud Trace (TBD) |
 | Environments | Single env — no dev/prod split. Feature branches test locally. |
@@ -73,7 +73,7 @@ stadera/
 | M2 | Domain core | ✅ Done | Merged via PR #2 (squashed into `1507c18`). Domain blockers resolved. Follow-ups tracked in `reviews/pr-2.md` |
 | M3 | Storage | ✅ Done | Both PRs merged: scaffold (#3) and repositories+tests (#5). Closed `1507c18..4730651` |
 | M4 | Withings integration | ✅ Done | Both PRs merged: OAuth + API client + pair binary (#6), sync cron job + idempotent persistence (#7). End-to-end sync verified locally via `make sync` |
-| M5 | API + Frontend | ⏳ In progress | Backend split into 4 PRs: api scaffold, Google OAuth + sessions, domain endpoints, OpenAPI. Frontend in separate `stadera-web` repo (Next.js, Claude-implemented) |
+| M5 | API + Frontend | ⏳ In progress | Backend done: scaffold (#8), Google OAuth+sessions (#9), domain endpoints (#10), OpenAPI/utoipa (#15). Frontend in `stadera-web` (Next.js 15, Claude-implemented) starting now |
 | M6 | Notifications | 📋 Planned | Pushover daily job, Resend weekly digest (Apple-weekly-summary style) |
 | M7 | Cloud deploy | 📋 Planned | Terraform, GitHub Actions deploy, Dockerfile multi-stage, Vercel for frontend |
 
@@ -154,3 +154,30 @@ Cross-milestone facts worth remembering:
 ---
 
 Last updated: 2026-04-24. Review and prune when a milestone closes or a decision becomes code.
+
+## Data flow diagram
+
+┌──────────────┐    Wi-Fi     ┌────────────────┐
+│ Withings     │ ───────────▶ │ Withings Cloud │
+│ Body+ scale  │              │ (Health Mate)  │
+└──────────────┘              └────────┬───────┘
+                                       │
+                                       │ OAuth2 + REST
+                                       │ "Health Mate API"
+                                       ▼
+                              ┌────────────────┐
+                              │ stadera-jobs   │  ← `make sync`
+                              │ (cron binary)  │
+                              └────────┬───────┘
+                                       │ INSERT
+                                       ▼
+                              ┌────────────────┐
+                              │ Postgres       │
+                              │ measurements   │
+                              └────────┬───────┘
+                                       │ SELECT
+                                       ▼
+                              ┌────────────────┐    HTTPS    ┌─────────────┐
+                              │ stadera-api    │ ──────────▶ │ stadera-web │
+                              │ /today /trend… │             │ dashboard   │
+                              └────────────────┘             └─────────────┘
