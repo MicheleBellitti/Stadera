@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO measurements\n                    (id, user_id, taken_at, weight_kg, body_fat_percent, lean_mass_kg, source)\n                VALUES ($1, $2, $3, $4, $5, $6, $7)\n                ON CONFLICT (user_id, taken_at, source) DO NOTHING\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5db36b49e1561fbaca3b6b8dd9ce87a527334acb9427611908ec3ece608e2531"
+}

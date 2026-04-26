@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO measurements\n                    (id, user_id, taken_at, weight_kg, body_fat_percent, lean_mass_kg, source)\n                VALUES ($1, $2, $3, $4, $5, $6, $7)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "58b968e856b0bd5fc903449aaf9dd1b6258e7ce0436b5dc9bc0bd01ebbbf6c42"
+}

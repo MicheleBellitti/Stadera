@@ -29,6 +29,22 @@ ARG DEBIAN_VERSION=bookworm
 FROM lukemathwalker/cargo-chef:latest-rust-${RUST_VERSION}-slim-${DEBIAN_VERSION} AS chef
 WORKDIR /app
 
+# `utoipa-swagger-ui`'s build.rs downloads the Swagger UI release zip
+# from GitHub during `cargo build`, falling back to system `curl` when
+# the `reqwest` build-script feature isn't enabled. The slim base
+# image doesn't ship curl, so add it (plus ca-certificates for HTTPS).
+# Inherited by both `planner` and `builder` stages.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# `sqlx::query!` / `sqlx::query_as!` validate SQL against a live DB at
+# compile time. Cloud Run builds have no DB reachable, so we rely on
+# the `.sqlx/` cache committed at the workspace root, generated via
+# `cargo sqlx prepare --workspace`. CI guards freshness with
+# `sqlx prepare --check` (see ci.yml clippy job).
+ENV SQLX_OFFLINE=true
+
 # ---- planner ----------------------------------------------------------
 FROM chef AS planner
 COPY . .

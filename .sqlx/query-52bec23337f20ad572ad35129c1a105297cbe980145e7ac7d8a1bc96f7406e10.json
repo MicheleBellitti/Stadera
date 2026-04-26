@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO withings_credentials\n                (user_id, access_token_enc, refresh_token_enc, expires_at, scope)\n            VALUES ($1, $2, $3, $4, $5)\n            ON CONFLICT (user_id) DO UPDATE SET\n                access_token_enc  = EXCLUDED.access_token_enc,\n                refresh_token_enc = EXCLUDED.refresh_token_enc,\n                expires_at        = EXCLUDED.expires_at,\n                scope             = EXCLUDED.scope,\n                updated_at        = now()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bytea",
+        "Bytea",
+        "Timestamptz",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "52bec23337f20ad572ad35129c1a105297cbe980145e7ac7d8a1bc96f7406e10"
+}
