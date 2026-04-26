@@ -35,9 +35,15 @@ impl<T> ApiEnvelope<T> {
 ///
 /// Each `measuregrp` represents a single weighing event with one or more
 /// individual `measures` (weight, body fat percent, lean mass, …).
+///
+/// `updatetime` is documented as always-present but Withings omits it in
+/// practice when `measuregrps` is empty (observed on freshly paired
+/// accounts with zero readings). It's also never read in this codebase,
+/// so we accept it as `Option<i64>` and move on.
 #[derive(Debug, Deserialize)]
 pub struct GetMeasBody {
-    pub updatetime: i64,
+    #[serde(default)]
+    pub updatetime: Option<i64>,
     #[serde(default)]
     pub timezone: Option<String>,
     pub measuregrps: Vec<MeasureGroup>,

@@ -129,3 +129,27 @@ async fn get_measurements_maps_api_error() {
         other => panic!("expected WithingsError::Api, got {other:?}"),
     }
 }
+
+/// Regression for: freshly-paired Withings accounts with zero readings
+/// return `{"status":0,"body":{"measuregrps":[]}}` — no `updatetime`.
+/// Required field made the deserializer fail and aborted the entire
+/// sync. `updatetime` is now optional.
+#[tokio::test]
+async fn get_measurements_handles_body_without_updatetime() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/measure"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "status": 0,
+            "body": {
+                "measuregrps": []
+            }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = client_pointing_to(&server);
+    let (from, to) = make_window();
+    let groups = client.get_measurements("any", from, to).await.unwrap();
+    assert!(groups.is_empty());
+}
