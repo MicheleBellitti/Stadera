@@ -57,7 +57,12 @@ impl WithingsClient {
         let startdate = from.timestamp().to_string();
         let enddate = to.timestamp().to_string();
 
-        let envelope: ApiEnvelope<GetMeasBody> = self
+        // Read as text first (instead of `.json()`) so we can log the raw
+        // body on a parse failure. Withings' actual response shape drifts
+        // from the documented one — empty bodies, missing "always present"
+        // fields, etc. — and silently failing without seeing the wire
+        // payload turns every regression into a guessing game.
+        let raw_body = self
             .http
             .post(format!("{}/measure", self.base_url))
             .bearer_auth(access_token)
@@ -71,8 +76,17 @@ impl WithingsClient {
             .send()
             .await?
             .error_for_status()?
-            .json()
+            .text()
             .await?;
+
+        tracing::trace!(raw_body = %raw_body, "withings /measure response");
+
+        let envelope: ApiEnvelope<GetMeasBody> =
+            serde_json::from_str(&raw_body).map_err(|e| {
+                WithingsError::UnexpectedResponse(format!(
+                    "failed to deserialize /measure response: {e} — raw: {raw_body}"
+                ))
+            })?;
 
         if !envelope.is_success() {
             return Err(WithingsError::Api {
@@ -80,9 +94,10 @@ impl WithingsClient {
                 message: envelope.error.unwrap_or_default(),
             });
         }
-        let body = envelope
-            .body
-            .ok_or_else(|| WithingsError::UnexpectedResponse("status=0 but body is null".into()))?;
+        // Empty `body` (status=0 with no body field) is treated as "no
+        // measurements". Documented as null only on errors, but Withings
+        // has been observed returning `{"status":0}` flat on edge cases.
+        let body = envelope.body.unwrap_or_default();
         Ok(body.measuregrps)
     }
 }
