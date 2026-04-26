@@ -29,6 +29,15 @@ ARG DEBIAN_VERSION=bookworm
 FROM lukemathwalker/cargo-chef:latest-rust-${RUST_VERSION}-slim-${DEBIAN_VERSION} AS chef
 WORKDIR /app
 
+# `utoipa-swagger-ui`'s build.rs downloads the Swagger UI release zip
+# from GitHub during `cargo build`, falling back to the system `curl`
+# when the `reqwest` build-script feature isn't enabled. The slim base
+# image doesn't ship curl, so add it (plus ca-certificates for HTTPS).
+# Inherited by both `planner` and `builder` stages.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # ---- planner ----------------------------------------------------------
 FROM chef AS planner
 COPY . .
