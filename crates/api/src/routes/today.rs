@@ -14,7 +14,7 @@ use axum::extract::State;
 use axum::routing::get;
 use chrono::{Duration, Utc};
 use serde::Serialize;
-use stadera_domain::energy::{bmr_katch_mcardle, daily_target as compute_daily_target};
+use stadera_domain::energy::{bmr_katch_mcardle, daily_target as compute_daily_target, tdee};
 use stadera_domain::trend::compute_trend;
 use stadera_storage::StorageContext;
 
@@ -66,15 +66,29 @@ async fn today(
         .await?;
     let trend = compute_trend(&window);
 
-    // `daily_target` returns `Result` because the domain refuses to produce a
-    // target below 1200 kcal (safe minimum). For the dashboard we surface
-    // `null` in that case — the FE can render a "raise your goal" hint.
-    let daily_target = match (latest.as_ref(), profile.as_ref()) {
-        (Some(m), Some(p)) => m.lean_mass.and_then(|lm| {
-            let bmr = bmr_katch_mcardle(lm);
-            let tdee = bmr * p.activity.multiplier();
+    // For `daily_target` we want the most recent body-composition reading
+    // (lean_mass) within the last 14 days, even if it isn't the absolute
+    // latest measurement. A user who logs a weight-only manual entry today
+    // shouldn't lose their KPI just because the Withings body-composition
+    // reading from yesterday no longer wins on `taken_at`.
+    //
+    // The current `latest.weight` is still used for protein_g (matches today's
+    // body weight), but the `lean_mass` may come from a slightly older row.
+    //
+    // `compute_daily_target` returns `Result` because the domain refuses to
+    // produce a target below 1200 kcal (safe minimum). We surface `null` in
+    // that case — the FE can render a "raise your goal" hint.
+    let recent_lean_mass = window
+        .iter()
+        .rev() // window is ASC; reverse to scan newest-first within the bound
+        .find_map(|m| m.lean_mass);
+
+    let daily_target = match (latest.as_ref(), profile.as_ref(), recent_lean_mass) {
+        (Some(m), Some(p), Some(lm)) => {
+            let _bmr = bmr_katch_mcardle(lm);
+            let tdee = tdee(lm, p.activity);
             compute_daily_target(tdee, m.weight, KCAL_DEFICIT, PROTEIN_PER_KG).ok()
-        }),
+        }
         _ => None,
     };
 
