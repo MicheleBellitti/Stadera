@@ -10,30 +10,46 @@ use axum::routing::get;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use stadera_storage::StorageContext;
+use utoipa::{IntoParams, ToSchema};
 
 use crate::auth::AuthUser;
 use crate::dto::MeasurementView;
-use crate::error::AppError;
+use crate::error::{AppError, ErrorBody};
 use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
     Router::new().route("/history", get(history))
 }
 
-#[derive(Deserialize)]
-struct HistoryQuery {
-    from: DateTime<Utc>,
-    to: DateTime<Utc>,
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(crate) struct HistoryQuery {
+    /// Inclusive lower bound (RFC 3339).
+    pub from: DateTime<Utc>,
+    /// Exclusive upper bound (RFC 3339).
+    pub to: DateTime<Utc>,
 }
 
-#[derive(Serialize)]
-struct HistoryResponse {
-    from: DateTime<Utc>,
-    to: DateTime<Utc>,
-    measurements: Vec<MeasurementView>,
+#[derive(Serialize, ToSchema)]
+pub(crate) struct HistoryResponse {
+    pub from: DateTime<Utc>,
+    pub to: DateTime<Utc>,
+    pub measurements: Vec<MeasurementView>,
 }
 
-async fn history(
+#[utoipa::path(
+    get,
+    path = "/history",
+    tag = "measurements",
+    params(HistoryQuery),
+    responses(
+        (status = 200, description = "Measurements in `[from, to)`", body = HistoryResponse),
+        (status = 400, description = "Invalid window", body = ErrorBody),
+        (status = 401, description = "Missing or invalid session", body = ErrorBody),
+    ),
+    security(("session_cookie" = []))
+)]
+pub(crate) async fn history(
     State(state): State<AppState>,
     user: AuthUser,
     Query(params): Query<HistoryQuery>,

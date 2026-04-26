@@ -17,10 +17,11 @@ use serde::Serialize;
 use stadera_domain::energy::{bmr_katch_mcardle, daily_target as compute_daily_target, tdee};
 use stadera_domain::trend::compute_trend;
 use stadera_storage::StorageContext;
+use utoipa::ToSchema;
 
 use crate::auth::AuthUser;
 use crate::dto::{DailyTargetView, MeasurementView, UserView};
-use crate::error::AppError;
+use crate::error::{AppError, ErrorBody};
 use crate::state::AppState;
 
 /// Standard cutting deficit for a moderately active adult. Configurable
@@ -34,16 +35,26 @@ pub fn routes() -> Router<AppState> {
     Router::new().route("/today", get(today))
 }
 
-#[derive(Serialize)]
-struct TodayResponse {
-    user: UserView,
-    latest: Option<MeasurementView>,
-    bmi: Option<f64>,
-    weekly_delta_kg: Option<f64>,
-    daily_target: Option<DailyTargetView>,
+#[derive(Serialize, ToSchema)]
+pub(crate) struct TodayResponse {
+    pub user: UserView,
+    pub latest: Option<MeasurementView>,
+    pub bmi: Option<f64>,
+    pub weekly_delta_kg: Option<f64>,
+    pub daily_target: Option<DailyTargetView>,
 }
 
-async fn today(
+#[utoipa::path(
+    get,
+    path = "/today",
+    tag = "measurements",
+    responses(
+        (status = 200, description = "Today's KPIs", body = TodayResponse),
+        (status = 401, description = "Missing or invalid session", body = ErrorBody),
+    ),
+    security(("session_cookie" = []))
+)]
+pub(crate) async fn today(
     State(state): State<AppState>,
     user: AuthUser,
 ) -> Result<Json<TodayResponse>, AppError> {
@@ -71,9 +82,6 @@ async fn today(
     // latest measurement. A user who logs a weight-only manual entry today
     // shouldn't lose their KPI just because the Withings body-composition
     // reading from yesterday no longer wins on `taken_at`.
-    //
-    // The current `latest.weight` is still used for protein_g (matches today's
-    // body weight), but the `lean_mass` may come from a slightly older row.
     //
     // `compute_daily_target` returns `Result` because the domain refuses to
     // produce a target below 1200 kcal (safe minimum). We surface `null` in

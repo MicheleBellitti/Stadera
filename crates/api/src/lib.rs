@@ -16,6 +16,7 @@ pub mod auth;
 pub mod config;
 pub mod dto;
 pub mod error;
+pub mod openapi;
 pub mod routes;
 pub mod state;
 
@@ -29,6 +30,10 @@ use axum::http::{HeaderName, HeaderValue, Method, StatusCode, header};
 use tower_http::cors::CorsLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use crate::openapi::ApiDoc;
 
 /// Build the top-level router with all layers wired up.
 pub fn router(state: AppState) -> Router {
@@ -42,6 +47,7 @@ pub fn router(state: AppState) -> Router {
         .merge(routes::trend::routes())
         .merge(routes::history::routes())
         .merge(routes::profile::routes())
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,

@@ -9,9 +9,10 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 use stadera_domain::{ActivityLevel, DailyTarget, Measurement, Sex, UserProfile};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct UserView {
     pub id: Uuid,
     pub email: String,
@@ -19,12 +20,13 @@ pub struct UserView {
 }
 
 /// Wire shape of a single measurement.
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct MeasurementView {
     pub taken_at: DateTime<Utc>,
     pub weight_kg: f64,
     pub body_fat_percent: Option<f64>,
     pub lean_mass_kg: Option<f64>,
+    /// Provenance of the reading. One of: `withings`, `manual`.
     pub source: &'static str,
 }
 
@@ -40,7 +42,7 @@ impl From<&Measurement> for MeasurementView {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct DailyTargetView {
     pub kcal: f64,
     pub protein_g: f64,
@@ -55,11 +57,13 @@ impl From<DailyTarget> for DailyTargetView {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct ProfileView {
     pub birth_date: NaiveDate,
+    /// One of: `male`, `female`.
     pub sex: &'static str,
     pub height_cm: f64,
+    /// One of: `sedentary`, `lightly_active`, `moderately_active`, `very_active`.
     pub activity_level: &'static str,
     pub goal_weight_kg: f64,
 }

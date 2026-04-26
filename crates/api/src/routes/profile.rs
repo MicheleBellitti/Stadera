@@ -13,10 +13,11 @@ use chrono::NaiveDate;
 use serde::Deserialize;
 use stadera_domain::{Height, UserProfile, Weight};
 use stadera_storage::StorageContext;
+use utoipa::ToSchema;
 
 use crate::auth::AuthUser;
 use crate::dto::{ProfileView, parse_activity_level, parse_sex};
-use crate::error::AppError;
+use crate::error::{AppError, ErrorBody};
 use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
@@ -25,7 +26,18 @@ pub fn routes() -> Router<AppState> {
         .route("/profile", put(put_profile))
 }
 
-async fn get_profile(
+#[utoipa::path(
+    get,
+    path = "/profile",
+    tag = "profile",
+    responses(
+        (status = 200, description = "Current profile", body = ProfileView),
+        (status = 404, description = "Profile not yet set", body = ErrorBody),
+        (status = 401, description = "Missing or invalid session", body = ErrorBody),
+    ),
+    security(("session_cookie" = []))
+)]
+pub(crate) async fn get_profile(
     State(state): State<AppState>,
     user: AuthUser,
 ) -> Result<Json<ProfileView>, AppError> {
@@ -38,16 +50,30 @@ async fn get_profile(
     Ok(Json(ProfileView::from(&profile)))
 }
 
-#[derive(Deserialize)]
-struct ProfilePayload {
-    sex: String,
-    birth_date: NaiveDate,
-    height_cm: f64,
-    activity_level: String,
-    goal_weight_kg: f64,
+#[derive(Deserialize, ToSchema)]
+pub(crate) struct ProfilePayload {
+    /// One of: `male`, `female`.
+    pub sex: String,
+    pub birth_date: NaiveDate,
+    pub height_cm: f64,
+    /// One of: `sedentary`, `lightly_active`, `moderately_active`, `very_active`.
+    pub activity_level: String,
+    pub goal_weight_kg: f64,
 }
 
-async fn put_profile(
+#[utoipa::path(
+    put,
+    path = "/profile",
+    tag = "profile",
+    request_body = ProfilePayload,
+    responses(
+        (status = 204, description = "Profile saved"),
+        (status = 400, description = "Invalid field", body = ErrorBody),
+        (status = 401, description = "Missing or invalid session", body = ErrorBody),
+    ),
+    security(("session_cookie" = []))
+)]
+pub(crate) async fn put_profile(
     State(state): State<AppState>,
     user: AuthUser,
     Json(payload): Json<ProfilePayload>,
