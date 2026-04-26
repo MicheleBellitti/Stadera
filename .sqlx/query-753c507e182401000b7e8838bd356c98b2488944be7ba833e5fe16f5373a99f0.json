@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO user_profiles\n                (user_id, sex, birth_date, height_cm, activity_level, goal_weight_kg, updated_at)\n            VALUES ($1, $2, $3, $4, $5, $6, $7)\n            ON CONFLICT (user_id) DO UPDATE SET\n                sex            = EXCLUDED.sex,\n                birth_date     = EXCLUDED.birth_date,\n                height_cm      = EXCLUDED.height_cm,\n                activity_level = EXCLUDED.activity_level,\n                goal_weight_kg = EXCLUDED.goal_weight_kg,\n                updated_at     = EXCLUDED.updated_at\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Date",
+        "Float8",
+        "Varchar",
+        "Float8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "753c507e182401000b7e8838bd356c98b2488944be7ba833e5fe16f5373a99f0"
+}

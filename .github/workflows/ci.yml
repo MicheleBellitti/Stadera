@@ -66,6 +66,13 @@ jobs:
       - name: Run migrations
         run: sqlx migrate run --source crates/storage/migrations
 
+      # Guard against stale `.sqlx/` cache. The Docker build runs sqlx
+      # in offline mode (SQLX_OFFLINE=true), so if a query changed and
+      # the committed cache wasn't refreshed, deploy would fail. This
+      # check fails the PR with an actionable message instead.
+      - name: Verify sqlx offline cache is up to date
+        run: cargo sqlx prepare --workspace --check -- --all-targets
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 

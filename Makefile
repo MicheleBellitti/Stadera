@@ -1,10 +1,14 @@
-.PHONY: help db-up db-down db-reset db-migrate db-psql check pair sync docker-build docker-run
+.PHONY: help db-up db-down db-reset db-migrate db-psql sqlx-prepare check pair sync docker-build docker-run
 
 # Default user-email for pair / sync. Override with: make pair USER_EMAIL=alice@example.com
 USER_EMAIL ?= michelebellitti272@gmail.com
 
 # Image tag for local docker builds. CI uses the GAR path directly.
 IMAGE ?= stadera-api:local
+
+# Pinned to the docker-compose Postgres so DB-touching make targets
+# never accidentally run against Neon (whatever `.env` happens to say).
+LOCAL_DATABASE_URL := postgres://stadera:stadera@localhost:5432/stadera
 
 help:
 	@echo "Dev targets:"
@@ -13,6 +17,7 @@ help:
 	@echo "  db-reset      Destroy volume and recreate + migrate"
 	@echo "  db-migrate    Run sqlx migrations against local DB"
 	@echo "  db-psql       Open psql shell into local DB"
+	@echo "  sqlx-prepare  Regenerate .sqlx/ offline cache (commit the result)"
 	@echo "  pair          Run first-time Withings OAuth pairing (USER_EMAIL=...)"
 	@echo "  sync          Run a one-shot Withings sync (USER_EMAIL=...)"
 	@echo "  check         cargo fmt + clippy + test"
@@ -34,10 +39,19 @@ db-reset:
 	$(MAKE) db-migrate
 
 db-migrate:
-	cd crates/storage && sqlx migrate run
+	cd crates/storage && DATABASE_URL=$(LOCAL_DATABASE_URL) sqlx migrate run
 
 db-psql:
 	docker compose exec postgres psql -U stadera -d stadera
+
+# Regenerate the sqlx offline query cache used by Docker/Cloud Run
+# builds. Requires `db-up` + `db-migrate` first so the local schema is
+# canonical. `-- --all-targets` is essential: without it, queries only
+# reachable through integration tests are silently skipped, and you get
+# a cache that's internally consistent but incomplete. CI verifies
+# freshness via `sqlx prepare --check` in the clippy job.
+sqlx-prepare:
+	DATABASE_URL=$(LOCAL_DATABASE_URL) cargo sqlx prepare --workspace -- --all-targets
 
 pair:
 	cargo run -p stadera-withings --bin pair -- --user-email $(USER_EMAIL)
@@ -47,8 +61,8 @@ sync:
 
 check:
 	cargo fmt --all -- --check
-	cargo clippy --all-targets --all-features -- -D warnings
-	cargo test --all
+	SQLX_OFFLINE=true cargo clippy --all-targets --all-features -- -D warnings
+	SQLX_OFFLINE=true cargo test --all
 
 docker-build:
 	docker build -t $(IMAGE) .
