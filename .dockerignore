@@ -1,0 +1,38 @@
+# Reduce build context size + avoid leaking dev artifacts into the image.
+
+# Build artifacts (re-created in builder stage)
+target
+**/target
+
+# Local env / secrets
+.env
+.env.*
+
+# Git / CI metadata not needed at build time
+.git
+.github
+.gitignore
+.dockerignore
+
+# Editor / OS noise
+.vscode
+.idea
+.DS_Store
+*.swp
+
+# Tests cache, rustc incremental, etc.
+**/*.rs.bk
+**/.cargo
+
+# rust-toolchain.toml triggers rustup auto-sync on the first cargo
+# call inside the container, which hits static.rust-lang.org and
+# fails behind TLS-MITM proxies. The Docker base image already pins
+# a matching rust version (see Dockerfile ARG), so we use that
+# instead of re-syncing.
+rust-toolchain.toml
+
+# Docs that don't influence the build
+README.md
+CLAUDE.md
+AGENTS.md
+.claude

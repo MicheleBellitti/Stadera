@@ -1,0 +1,116 @@
+# Build + deploy stadera-api to Cloud Run on every push to main.
+#
+# Same pattern as stadera-web: GitHub OIDC → Workload Identity
+# Federation → GCP service account. No JSON keys.
+#
+# One-time GCP setup (see README "Deploy" section for the full script):
+#   - Artifact Registry repo `stadera` in $GCP_REGION (shared with web)
+#   - Service account `stadera-api-deployer@stadera-prod.iam` with
+#     run.admin, artifactregistry.writer, iam.serviceAccountUser
+#   - Workload Identity Pool provider scoped to this repo
+#     (MicheleBellitti/Stadera) — separate from the web provider
+#
+# GitHub variables (Settings → Secrets and variables → Actions → Variables):
+#   GCP_PROJECT             e.g. stadera-prod
+#   GCP_REGION              e.g. europe-west1
+#   ARTIFACT_REGISTRY_REPO  e.g. stadera
+#   CLOUD_RUN_SERVICE       e.g. stadera-api
+#   FRONTEND_ORIGIN         e.g. https://stadera-web-XXX.europe-west1.run.app
+#   GOOGLE_CLIENT_ID        OAuth client ID (public)
+#   GOOGLE_REDIRECT_URL     ${BACKEND_URL}/auth/google/callback
+#
+# GitHub secrets:
+#   WIF_PROVIDER            projects/<num>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
+#   WIF_SERVICE_ACCOUNT     stadera-api-deployer@stadera-prod.iam.gserviceaccount.com
+#   DATABASE_URL            Neon Postgres connection string
+#   GOOGLE_CLIENT_SECRET
+#
+# `stadera-api` itself only needs the env vars above (see
+# crates/api/src/config.rs). The Withings client_id / client_secret /
+# token_key are read by `stadera-jobs` and the `pair` binary, which
+# deploy separately in M7-step2 (Cloud Run Job + Cloud Scheduler).
+#
+# Migration of secrets from GitHub → GCP Secret Manager is M7-step3
+# (Terraform). For step1 we keep them in GitHub for setup simplicity.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+# Cancel a running deploy if a newer commit lands on main.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Cold cargo-chef build is ~5 min, plus push + deploy. 30 min is
+    # generous headroom; warm builds finish in ~2 min total.
+    timeout-minutes: 30
+
+    env:
+      IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/${{ vars.CLOUD_RUN_SERVICE }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # Buildx + GHA cache so the cargo-chef dep layer survives across
+      # workflow runs. Without this, every push pays the full cold-build
+      # cost.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ vars.CLOUD_RUN_SERVICE }}
+          region: ${{ vars.GCP_REGION }}
+          image: ${{ env.IMAGE }}:${{ github.sha }}
+          # Step1 keeps secrets in GitHub Actions and pushes them to
+          # Cloud Run as env vars. Step3 (Terraform) migrates these to
+          # Secret Manager and uses `secrets:` instead of `env_vars:`.
+          env_vars: |
+            FRONTEND_ORIGIN=${{ vars.FRONTEND_ORIGIN }}
+            GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+            GOOGLE_REDIRECT_URL=${{ vars.GOOGLE_REDIRECT_URL }}
+            COOKIE_SECURE=true
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          flags: >-
+            --port=8080
+            --allow-unauthenticated
+            --min-instances=0
+            --max-instances=2
+            --cpu=1
+            --memory=512Mi
+            --timeout=60

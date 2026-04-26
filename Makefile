@@ -1,18 +1,23 @@
-.PHONY: help db-up db-down db-reset db-migrate db-psql check pair sync
+.PHONY: help db-up db-down db-reset db-migrate db-psql check pair sync docker-build docker-run
 
 # Default user-email for pair / sync. Override with: make pair USER_EMAIL=alice@example.com
 USER_EMAIL ?= michelebellitti272@gmail.com
 
+# Image tag for local docker builds. CI uses the GAR path directly.
+IMAGE ?= stadera-api:local
+
 help:
 	@echo "Dev targets:"
-	@echo "  db-up        Start Postgres (Docker Compose)"
-	@echo "  db-down      Stop Postgres"
-	@echo "  db-reset     Destroy volume and recreate + migrate"
-	@echo "  db-migrate   Run sqlx migrations against local DB"
-	@echo "  db-psql      Open psql shell into local DB"
-	@echo "  pair         Run first-time Withings OAuth pairing (USER_EMAIL=...)"
-	@echo "  sync         Run a one-shot Withings sync (USER_EMAIL=...)"
-	@echo "  check        cargo fmt + clippy + test"
+	@echo "  db-up         Start Postgres (Docker Compose)"
+	@echo "  db-down       Stop Postgres"
+	@echo "  db-reset      Destroy volume and recreate + migrate"
+	@echo "  db-migrate    Run sqlx migrations against local DB"
+	@echo "  db-psql       Open psql shell into local DB"
+	@echo "  pair          Run first-time Withings OAuth pairing (USER_EMAIL=...)"
+	@echo "  sync          Run a one-shot Withings sync (USER_EMAIL=...)"
+	@echo "  check         cargo fmt + clippy + test"
+	@echo "  docker-build  Build the Cloud Run image locally (IMAGE=$(IMAGE))"
+	@echo "  docker-run    Run the image locally on :8080 (needs .env)"
 
 db-up:
 	docker compose up -d postgres
@@ -44,3 +49,12 @@ check:
 	cargo fmt --all -- --check
 	cargo clippy --all-targets --all-features -- -D warnings
 	cargo test --all
+
+docker-build:
+	docker build -t $(IMAGE) .
+
+# Local smoke test of the production image. Reads env from `.env` so
+# DATABASE_URL points wherever your local backend usually points (e.g.
+# host Postgres via `host.docker.internal`).
+docker-run:
+	docker run --rm -p 8080:8080 --env-file .env $(IMAGE)
