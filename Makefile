@@ -46,10 +46,12 @@ db-psql:
 
 # Regenerate the sqlx offline query cache used by Docker/Cloud Run
 # builds. Requires `db-up` + `db-migrate` first so the local schema is
-# canonical. Commit the resulting `.sqlx/` directory; CI verifies
-# freshness with `sqlx prepare --check` in the clippy job.
+# canonical. `-- --all-targets` is essential: without it, queries only
+# reachable through integration tests are silently skipped, and you get
+# a cache that's internally consistent but incomplete. CI verifies
+# freshness via `sqlx prepare --check` in the clippy job.
 sqlx-prepare:
-	DATABASE_URL=$(LOCAL_DATABASE_URL) cargo sqlx prepare --workspace
+	DATABASE_URL=$(LOCAL_DATABASE_URL) cargo sqlx prepare --workspace -- --all-targets
 
 pair:
 	cargo run -p stadera-withings --bin pair -- --user-email $(USER_EMAIL)
@@ -59,8 +61,8 @@ sync:
 
 check:
 	cargo fmt --all -- --check
-	cargo clippy --all-targets --all-features -- -D warnings
-	cargo test --all
+	SQLX_OFFLINE=true cargo clippy --all-targets --all-features -- -D warnings
+	SQLX_OFFLINE=true cargo test --all
 
 docker-build:
 	docker build -t $(IMAGE) .

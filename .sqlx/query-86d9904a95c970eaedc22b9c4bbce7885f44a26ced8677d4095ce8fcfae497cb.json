@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT user_id, sex, birth_date, height_cm, activity_level, goal_weight_kg, updated_at\n            FROM user_profiles\n            WHERE user_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "sex",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "birth_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 3,
+        "name": "height_cm",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "activity_level",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "goal_weight_kg",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "86d9904a95c970eaedc22b9c4bbce7885f44a26ced8677d4095ce8fcfae497cb"
+}
