@@ -35,11 +35,20 @@ impl<T> ApiEnvelope<T> {
 ///
 /// Each `measuregrp` represents a single weighing event with one or more
 /// individual `measures` (weight, body fat percent, lean mass, …).
-#[derive(Debug, Deserialize)]
+///
+/// **Every field is `#[serde(default)]`.** Withings' documented contract
+/// is that the body always contains at least `updatetime` and
+/// `measuregrps`, but in practice freshly-paired accounts with zero
+/// readings receive `{"status":0,"body":{}}` — fully empty. Defaulting
+/// is the only safe stance. None of these fields except `measuregrps`
+/// is ever read by the rest of the crate.
+#[derive(Debug, Default, Deserialize)]
 pub struct GetMeasBody {
-    pub updatetime: i64,
+    #[serde(default)]
+    pub updatetime: Option<i64>,
     #[serde(default)]
     pub timezone: Option<String>,
+    #[serde(default)]
     pub measuregrps: Vec<MeasureGroup>,
 }
 

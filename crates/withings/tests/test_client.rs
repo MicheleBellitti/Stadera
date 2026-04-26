@@ -129,3 +129,69 @@ async fn get_measurements_maps_api_error() {
         other => panic!("expected WithingsError::Api, got {other:?}"),
     }
 }
+
+/// Regression for: freshly-paired Withings accounts with zero readings
+/// return `{"status":0,"body":{"measuregrps":[]}}` — no `updatetime`.
+/// Required field made the deserializer fail and aborted the entire
+/// sync. `updatetime` is now optional.
+#[tokio::test]
+async fn get_measurements_handles_body_without_updatetime() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/measure"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "status": 0,
+            "body": {
+                "measuregrps": []
+            }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = client_pointing_to(&server);
+    let (from, to) = make_window();
+    let groups = client.get_measurements("any", from, to).await.unwrap();
+    assert!(groups.is_empty());
+}
+
+/// Regression for: same accounts also return a fully empty body
+/// `{"status":0,"body":{}}` — neither `updatetime` nor `measuregrps`.
+/// Both fields are now `#[serde(default)]` so the deserializer accepts
+/// the empty object and `measuregrps` defaults to an empty Vec.
+#[tokio::test]
+async fn get_measurements_handles_empty_body_object() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/measure"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "status": 0,
+            "body": {}
+        })))
+        .mount(&server)
+        .await;
+
+    let client = client_pointing_to(&server);
+    let (from, to) = make_window();
+    let groups = client.get_measurements("any", from, to).await.unwrap();
+    assert!(groups.is_empty());
+}
+
+/// Regression for: even more degenerate case where Withings drops the
+/// `body` field entirely on a successful status. Treated as "no
+/// measurements" rather than a hard error.
+#[tokio::test]
+async fn get_measurements_handles_missing_body_field() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/measure"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "status": 0
+        })))
+        .mount(&server)
+        .await;
+
+    let client = client_pointing_to(&server);
+    let (from, to) = make_window();
+    let groups = client.get_measurements("any", from, to).await.unwrap();
+    assert!(groups.is_empty());
+}

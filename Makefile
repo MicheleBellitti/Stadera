@@ -1,7 +1,7 @@
 .PHONY: help db-up db-down db-reset db-migrate db-psql check pair sync
 
 # Default user-email for pair / sync. Override with: make pair USER_EMAIL=alice@example.com
-USER_EMAIL ?= michelebellitti78@gmail.com
+USER_EMAIL ?= michelebellitti272@gmail.com
 
 help:
 	@echo "Dev targets:"
