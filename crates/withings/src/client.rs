@@ -57,11 +57,19 @@ impl WithingsClient {
         let startdate = from.timestamp().to_string();
         let enddate = to.timestamp().to_string();
 
-        // Read as text first (instead of `.json()`) so we can log the raw
-        // body on a parse failure. Withings' actual response shape drifts
-        // from the documented one — empty bodies, missing "always present"
-        // fields, etc. — and silently failing without seeing the wire
-        // payload turns every regression into a guessing game.
+        // Read as text first (instead of `.json()`) so we can give better
+        // diagnostics on a parse failure — Withings' actual response shape
+        // drifts from the documented one (empty bodies, missing "always
+        // present" fields, …) and silently failing turns every regression
+        // into a guessing game.
+        //
+        // Privacy note: response bodies contain weight / body-fat /
+        // lean-mass values for the authenticated user. We deliberately
+        // never log them in full. On parse failure we emit a short
+        // structural preview (first ~100 chars, which in practice covers
+        // the JSON envelope and the first object key but no values) at
+        // error level, and the error itself carries only length + serde
+        // diagnostic — not the body.
         let raw_body = self
             .http
             .post(format!("{}/measure", self.base_url))
@@ -79,14 +87,21 @@ impl WithingsClient {
             .text()
             .await?;
 
-        tracing::trace!(raw_body = %raw_body, "withings /measure response");
-
-        let envelope: ApiEnvelope<GetMeasBody> =
-            serde_json::from_str(&raw_body).map_err(|e| {
-                WithingsError::UnexpectedResponse(format!(
-                    "failed to deserialize /measure response: {e} — raw: {raw_body}"
-                ))
-            })?;
+        let envelope: ApiEnvelope<GetMeasBody> = serde_json::from_str(&raw_body).map_err(|e| {
+            let preview: String = raw_body.chars().take(100).collect();
+            let truncated = preview.len() < raw_body.len();
+            tracing::error!(
+                error = %e,
+                body_len = raw_body.len(),
+                body_preview = %preview,
+                truncated,
+                "withings /measure response failed to deserialize",
+            );
+            WithingsError::UnexpectedResponse(format!(
+                "failed to deserialize /measure response (body length {} bytes): {e}",
+                raw_body.len()
+            ))
+        })?;
 
         if !envelope.is_success() {
             return Err(WithingsError::Api {
