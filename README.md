@@ -140,7 +140,6 @@ In *Settings → Secrets and variables → Actions*:
 - `FRONTEND_ORIGIN` — public URL of the deployed frontend Cloud Run service
 - `GOOGLE_CLIENT_ID` — Google OAuth client ID (public)
 - `GOOGLE_REDIRECT_URL` — `${BACKEND_URL}/auth/google/callback`
-- `WITHINGS_CLIENT_ID` — Withings client ID
 
 **Secrets** (real credentials):
 
@@ -148,9 +147,13 @@ In *Settings → Secrets and variables → Actions*:
 - `WIF_SERVICE_ACCOUNT` — `stadera-api-deployer@<project>.iam.gserviceaccount.com`
 - `DATABASE_URL` — Neon Postgres connection string
 - `GOOGLE_CLIENT_SECRET`
-- `WITHINGS_CLIENT_SECRET`
-- `WITHINGS_TOKEN_KEY` — 64-hex-char AES-256 key for token encryption
-- `COOKIE_SECRET` — cookie signing key
+
+`stadera-api` reads only the variables above (see
+`crates/api/src/config.rs`). Sessions are server-side opaque IDs in
+the `sessions` table — no cookie-signing key needed. The Withings
+`client_id` / `client_secret` / `token_key` are read only by
+`stadera-jobs` and the `pair` binary, deployed separately in
+M7-step2.
 
 ### Bootstrap order
 
