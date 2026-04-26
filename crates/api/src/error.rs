@@ -11,6 +11,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use thiserror::Error;
 use tracing::error;
+use utoipa::ToSchema;
 
 #[derive(Debug, Error)]
 pub enum AppError {
@@ -35,10 +36,13 @@ pub enum AppError {
     Internal(#[from] anyhow::Error),
 }
 
-#[derive(Serialize)]
-struct ErrorBody {
-    error: &'static str,
-    message: String,
+/// JSON shape of every error response.
+#[derive(Serialize, ToSchema)]
+pub struct ErrorBody {
+    /// Stable machine-readable error code (e.g. `not_found`, `unauthorized`).
+    pub error: &'static str,
+    /// Human-readable error message.
+    pub message: String,
 }
 
 impl IntoResponse for AppError {

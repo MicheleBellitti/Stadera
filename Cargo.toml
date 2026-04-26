@@ -51,3 +51,6 @@ tower-http = { version = "0.6", features = ["cors", "trace", "timeout"] }
 http-body-util = "0.1"
 # cookie crate uses `time::Duration` for max_age
 time = "0.3"
+# OpenAPI generation + Swagger UI
+utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "8", features = ["axum"] }

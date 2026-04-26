@@ -9,18 +9,27 @@ use axum::Json;
 use axum::Router;
 use axum::routing::get;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::state::AppState;
 
-#[derive(Serialize)]
-struct HealthResponse {
-    status: &'static str,
+#[derive(Serialize, ToSchema)]
+pub(crate) struct HealthResponse {
+    pub status: &'static str,
 }
 
 pub fn routes() -> Router<AppState> {
     Router::new().route("/health", get(health))
 }
 
-async fn health() -> Json<HealthResponse> {
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "Process is alive", body = HealthResponse)
+    )
+)]
+pub(crate) async fn health() -> Json<HealthResponse> {
     Json(HealthResponse { status: "ok" })
 }

@@ -27,6 +27,8 @@ oauth2.workspace = true
 reqwest.workspace = true
 time.workspace = true
 url.workspace = true
+utoipa.workspace = true
+utoipa-swagger-ui.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true }

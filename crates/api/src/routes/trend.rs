@@ -6,14 +6,15 @@ use axum::Json;
 use axum::Router;
 use axum::extract::{Query, State};
 use axum::routing::get;
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use stadera_domain::trend::compute_trend;
 use stadera_storage::StorageContext;
+use utoipa::{IntoParams, ToSchema};
 
 use crate::auth::AuthUser;
 use crate::dto::MeasurementView;
-use crate::error::AppError;
+use crate::error::{AppError, ErrorBody};
 use crate::state::AppState;
 
 const DEFAULT_DAYS: i64 = 30;
@@ -23,21 +24,35 @@ pub fn routes() -> Router<AppState> {
     Router::new().route("/trend", get(trend))
 }
 
-#[derive(Deserialize)]
-struct TrendQuery {
-    days: Option<i64>,
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(crate) struct TrendQuery {
+    /// Window length in days (default 30, max 365).
+    pub days: Option<i64>,
 }
 
-#[derive(Serialize)]
-struct TrendResponse {
-    from: chrono::DateTime<Utc>,
-    to: chrono::DateTime<Utc>,
-    measurements: Vec<MeasurementView>,
-    moving_average_7d_kg: Option<f64>,
-    weekly_delta_kg: Option<f64>,
+#[derive(Serialize, ToSchema)]
+pub(crate) struct TrendResponse {
+    pub from: DateTime<Utc>,
+    pub to: DateTime<Utc>,
+    pub measurements: Vec<MeasurementView>,
+    pub moving_average_7d_kg: Option<f64>,
+    pub weekly_delta_kg: Option<f64>,
 }
 
-async fn trend(
+#[utoipa::path(
+    get,
+    path = "/trend",
+    tag = "measurements",
+    params(TrendQuery),
+    responses(
+        (status = 200, description = "Measurements + aggregate stats over the window", body = TrendResponse),
+        (status = 400, description = "`days` out of range", body = ErrorBody),
+        (status = 401, description = "Missing or invalid session", body = ErrorBody),
+    ),
+    security(("session_cookie" = []))
+)]
+pub(crate) async fn trend(
     State(state): State<AppState>,
     user: AuthUser,
     Query(params): Query<TrendQuery>,
