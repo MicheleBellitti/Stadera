@@ -32,3 +32,4 @@ url.workspace = true
 tokio = { workspace = true }
 tower = { workspace = true }
 http-body-util.workspace = true
+urlencoding = "2"

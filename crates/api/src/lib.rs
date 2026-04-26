@@ -14,6 +14,7 @@
 
 pub mod auth;
 pub mod config;
+pub mod dto;
 pub mod error;
 pub mod routes;
 pub mod state;
@@ -37,6 +38,10 @@ pub fn router(state: AppState) -> Router {
         .merge(routes::health::routes())
         .merge(routes::auth::routes())
         .merge(routes::me::routes())
+        .merge(routes::today::routes())
+        .merge(routes::trend::routes())
+        .merge(routes::history::routes())
+        .merge(routes::profile::routes())
         .with_state(state)
         .layer(TimeoutLayer::with_status_code(
             StatusCode::REQUEST_TIMEOUT,
