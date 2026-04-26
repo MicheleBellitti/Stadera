@@ -15,27 +15,37 @@
 # `environment: prod`, otherwise vars.*/secrets.* resolve to empty.
 #
 # Variables (Environment → prod → Variables):
-#   GCP_PROJECT             e.g. stadera-prod
-#   GCP_REGION              e.g. europe-west1
-#   ARTIFACT_REGISTRY_REPO  e.g. stadera
-#   CLOUD_RUN_SERVICE       e.g. stadera-api
-#   FRONTEND_ORIGIN         e.g. https://stadera-web-XXX.europe-west1.run.app
-#   GOOGLE_CLIENT_ID        OAuth client ID (public)
-#   GOOGLE_REDIRECT_URL     ${BACKEND_URL}/auth/google/callback
+#   GCP_PROJECT              e.g. stadera-prod
+#   GCP_REGION               e.g. europe-west1
+#   ARTIFACT_REGISTRY_REPO   e.g. stadera
+#   CLOUD_RUN_SERVICE        e.g. stadera-api
+#   CLOUD_RUN_SYNC_JOB       e.g. stadera-sync (Cloud Run Job, M7-step2)
+#   SYNC_USER_EMAIL          email of the user whose Withings data to sync
+#                            (single-tenant for now; multi-user pulls all
+#                            paired users when we refactor sync)
+#   FRONTEND_ORIGIN          e.g. https://stadera-web-XXX.europe-west1.run.app
+#   GOOGLE_CLIENT_ID         OAuth client ID (public)
+#   GOOGLE_REDIRECT_URL      ${BACKEND_URL}/auth/google/callback
+#   WITHINGS_CLIENT_ID       Withings OAuth client ID
 #
 # Secrets (Environment → prod → Secrets):
-#   WIF_PROVIDER            projects/<num>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
-#   WIF_SERVICE_ACCOUNT     stadera-api-deployer@stadera-prod.iam.gserviceaccount.com
-#   DATABASE_URL            Neon Postgres connection string
+#   WIF_PROVIDER             projects/<num>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
+#   WIF_SERVICE_ACCOUNT      stadera-api-deployer@stadera-prod.iam.gserviceaccount.com
+#   DATABASE_URL             Neon Postgres connection string
 #   GOOGLE_CLIENT_SECRET
+#   WITHINGS_CLIENT_SECRET   Withings OAuth client secret (for sync job)
+#   WITHINGS_TOKEN_KEY       64-hex-char AES-256 key for token encryption
+#                            (must match the value used by the `pair` binary)
 #
-# `stadera-api` itself only needs the env vars above (see
-# crates/api/src/config.rs). The Withings client_id / client_secret /
-# token_key are read by `stadera-jobs` and the `pair` binary, which
-# deploy separately in M7-step2 (Cloud Run Job + Cloud Scheduler).
+# `stadera-api` reads only DATABASE_URL, FRONTEND_ORIGIN, COOKIE_SECURE,
+# GOOGLE_*. `stadera-jobs sync` adds DATABASE_URL + WITHINGS_*. The
+# build is shared (one image, two Cloud Run resources, different CMDs).
+#
+# Cloud Scheduler trigger (one-time gcloud setup, not in this workflow)
+# invokes the Cloud Run Job daily — see README "Deploy" section.
 #
 # Migration of secrets from GitHub → GCP Secret Manager is M7-step3
-# (Terraform). For step1 we keep them in GitHub for setup simplicity.
+# (Terraform). For step1/2 we keep them in GitHub for setup simplicity.
 
 name: Deploy
 
@@ -98,7 +108,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Cloud Run
+      - name: Deploy Cloud Run Service (stadera-api)
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ vars.CLOUD_RUN_SERVICE }}
@@ -122,3 +132,41 @@ jobs:
             --cpu=1
             --memory=512Mi
             --timeout=60
+
+      # M7-step2: deploy the same image as a Cloud Run Job that runs
+      # `stadera-jobs sync`. Idempotent — `gcloud run jobs deploy`
+      # creates the job if missing, updates the image + env on each run.
+      #
+      # Env vars are written to a temp YAML file (rather than a giant
+      # `--set-env-vars` flag) because some values like DATABASE_URL
+      # contain `=` and `,` which would confuse gcloud's parser. The
+      # file lives only on the GitHub-runner-managed VM for the
+      # duration of this step.
+      - name: Deploy Cloud Run Job (stadera-sync)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          WITHINGS_CLIENT_ID: ${{ vars.WITHINGS_CLIENT_ID }}
+          WITHINGS_CLIENT_SECRET: ${{ secrets.WITHINGS_CLIENT_SECRET }}
+          WITHINGS_TOKEN_KEY: ${{ secrets.WITHINGS_TOKEN_KEY }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/sync-env.yaml <<EOF
+          DATABASE_URL: "${DATABASE_URL}"
+          WITHINGS_CLIENT_ID: "${WITHINGS_CLIENT_ID}"
+          WITHINGS_CLIENT_SECRET: "${WITHINGS_CLIENT_SECRET}"
+          WITHINGS_TOKEN_KEY: "${WITHINGS_TOKEN_KEY}"
+          EOF
+
+          gcloud run jobs deploy "${{ vars.CLOUD_RUN_SYNC_JOB }}" \
+            --image="${{ env.IMAGE }}:${{ github.sha }}" \
+            --region="${{ vars.GCP_REGION }}" \
+            --command="/usr/local/bin/stadera-jobs" \
+            --args="sync,--user-email,${{ vars.SYNC_USER_EMAIL }}" \
+            --env-vars-file=/tmp/sync-env.yaml \
+            --max-retries=2 \
+            --task-timeout=300s \
+            --cpu=1 \
+            --memory=512Mi \
+            --quiet
+
+          rm -f /tmp/sync-env.yaml

@@ -137,9 +137,13 @@ In *Settings → Secrets and variables → Actions*:
 - `GCP_REGION` — e.g. `europe-west1`
 - `ARTIFACT_REGISTRY_REPO` — `stadera`
 - `CLOUD_RUN_SERVICE` — `stadera-api`
+- `CLOUD_RUN_SYNC_JOB` — `stadera-sync` (Cloud Run Job for daily sync)
+- `SYNC_USER_EMAIL` — email of the user whose Withings data the daily
+  sync pulls (single-tenant for now)
 - `FRONTEND_ORIGIN` — public URL of the deployed frontend Cloud Run service
 - `GOOGLE_CLIENT_ID` — Google OAuth client ID (public)
 - `GOOGLE_REDIRECT_URL` — `${BACKEND_URL}/auth/google/callback`
+- `WITHINGS_CLIENT_ID` — Withings OAuth client ID
 
 **Secrets** (real credentials):
 
@@ -147,13 +151,16 @@ In *Settings → Secrets and variables → Actions*:
 - `WIF_SERVICE_ACCOUNT` — `stadera-api-deployer@<project>.iam.gserviceaccount.com`
 - `DATABASE_URL` — Neon Postgres connection string
 - `GOOGLE_CLIENT_SECRET`
+- `WITHINGS_CLIENT_SECRET`
+- `WITHINGS_TOKEN_KEY` — 64-hex-char AES-256 key for token encryption.
+  **Must match the value used by the local `make pair` run that stored
+  the user's tokens.** If you rotate it, every paired user has to
+  re-do `make pair`.
 
-`stadera-api` reads only the variables above (see
-`crates/api/src/config.rs`). Sessions are server-side opaque IDs in
-the `sessions` table — no cookie-signing key needed. The Withings
-`client_id` / `client_secret` / `token_key` are read only by
-`stadera-jobs` and the `pair` binary, deployed separately in
-M7-step2.
+`stadera-api` reads only DATABASE_URL + FRONTEND_ORIGIN + COOKIE_SECURE +
+GOOGLE_*. `stadera-jobs sync` adds DATABASE_URL + WITHINGS_*. The
+deploy workflow builds the image once and deploys both as separate
+Cloud Run resources.
 
 ### Bootstrap order
 
@@ -171,6 +178,62 @@ the Cloud Run service URL, which only exists after the first deploy.
    variable, AND add it to the Google OAuth Console authorized
    redirect URIs.
 5. Re-trigger the workflow so the new env var is picked up.
+
+### Daily Withings sync (M7-step2)
+
+The deploy workflow already creates / updates the Cloud Run **Job**
+`stadera-sync`. It's configured but not scheduled — it runs only when
+something invokes it. We use **Cloud Scheduler** for that.
+
+Cloud Scheduler is one-time gcloud setup, runs as a dedicated SA so
+its blast radius is "invoke this one job, nothing else":
+
+```sh
+PROJECT=...
+REGION=europe-west1
+JOB=stadera-sync
+INVOKER_SA=stadera-sync-invoker
+INVOKER_SA_EMAIL=$INVOKER_SA@$PROJECT.iam.gserviceaccount.com
+
+# 0. Enable the API once (no-op if already on)
+gcloud services enable cloudscheduler.googleapis.com --project=$PROJECT
+
+# 1. Service account that Cloud Scheduler will use to invoke the Job
+gcloud iam service-accounts create $INVOKER_SA --project=$PROJECT
+
+# 2. Grant invoke permission on the SPECIFIC Cloud Run Job (least
+#    privilege: this SA can't invoke any other job in the project)
+gcloud run jobs add-iam-policy-binding $JOB \
+    --region=$REGION --project=$PROJECT \
+    --member="serviceAccount:$INVOKER_SA_EMAIL" \
+    --role=roles/run.invoker
+
+# 3. Create the daily trigger. 06:00 Europe/Rome — Withings has by then
+#    pushed the morning weighing to its cloud (typical lag is <30 s
+#    after stepping off the scale). The OIDC token Cloud Scheduler
+#    attaches to the request is what authorizes the run-invoke call.
+gcloud scheduler jobs create http stadera-sync-daily \
+    --location=$REGION --project=$PROJECT \
+    --schedule="0 6 * * *" \
+    --time-zone="Europe/Rome" \
+    --uri="https://$REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/$PROJECT/jobs/$JOB:run" \
+    --http-method=POST \
+    --oidc-service-account-email=$INVOKER_SA_EMAIL \
+    --oidc-token-audience="https://$REGION-run.googleapis.com/"
+```
+
+Trigger the job manually any time (smoke test, or one-off catch-up):
+
+```sh
+gcloud run jobs execute $JOB --region=$REGION --project=$PROJECT --wait
+```
+
+Inspect a run's logs:
+
+```sh
+gcloud beta run jobs executions describe <execution-id> \
+    --region=$REGION --project=$PROJECT
+```
 
 When you eventually move to a custom domain (`api.stadera.app`), the
 URL becomes stable and step 5 isn't needed on subsequent infrastructure

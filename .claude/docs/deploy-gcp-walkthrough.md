@@ -191,9 +191,125 @@ gcloud logging read \
     --limit=50 --format='value(textPayload)' --project=$PROJECT
 ```
 
+## M7-step2: Cloud Run Job + Cloud Scheduler
+
+The same Docker image that serves `stadera-api` also contains
+`stadera-jobs`. We deploy it as a **Cloud Run Job** (one-shot
+execution, not a long-running service) and schedule daily invocations
+via **Cloud Scheduler**.
+
+### Why a Job and not just a Service
+
+| | Service | Job |
+|---|---|---|
+| Lifecycle | always-on (or scale-to-zero with cold start on request) | exits when the binary returns |
+| Triggered by | HTTP requests | manual invoke / Scheduler / Eventarc |
+| Billing | per request-second (idle = $0 with min-instances=0) | per execution duration only |
+| Suited for | API serving | batch / ETL / cron |
+
+The sync is a 5-30 s batch task that runs once a day. Modeling it as
+a service would force us into either always-on (waste) or
+HTTP-triggering-itself (silly). Jobs map perfectly.
+
+### Workflow side: Cloud Run Job deploy
+
+The `Deploy Cloud Run Job` step in `.github/workflows/deploy.yml`:
+
+1. Writes a temp YAML file with `DATABASE_URL`, `WITHINGS_*` env vars.
+2. Calls `gcloud run jobs deploy` — creates the Job on first run,
+   updates the image + env on subsequent runs.
+3. Sets `--command=/usr/local/bin/stadera-jobs` and
+   `--args=sync,--user-email,${SYNC_USER_EMAIL}`. The comma-separated
+   `--args` becomes `argv` inside the container —
+   `["sync", "--user-email", "user@..."]`.
+4. Deletes the temp YAML.
+
+Why `--env-vars-file` and not inline `--set-env-vars`: gcloud's flag
+parser splits the inline form on commas, so any value containing a
+comma (Postgres URLs sometimes do) breaks. The file form is exact.
+
+### Cloud Scheduler: anatomy of a daily trigger
+
+```sh
+gcloud scheduler jobs create http stadera-sync-daily \
+    --location=$REGION --project=$PROJECT \
+    --schedule="0 6 * * *" \
+    --time-zone="Europe/Rome" \
+    --uri="https://$REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/$PROJECT/jobs/$JOB:run" \
+    --http-method=POST \
+    --oidc-service-account-email=$INVOKER_SA_EMAIL \
+    --oidc-token-audience="https://$REGION-run.googleapis.com/"
+```
+
+Reading flag by flag:
+
+- **`--schedule="0 6 * * *"`** — standard cron. Minute 0, hour 6,
+  any day of month, any month, any day of week. Daily 06:00.
+- **`--time-zone="Europe/Rome"`** — interpreted in this TZ, so
+  daylight savings shifts are absorbed automatically. Without this
+  the schedule is UTC and you'd be triggering at 07:00 / 08:00
+  depending on the season.
+- **`--uri=…/jobs/$JOB:run`** — the Cloud Run Admin API endpoint
+  that triggers a job execution. The `:run` suffix is the magic;
+  hitting the bare `…/jobs/$JOB` returns metadata, not an
+  execution.
+- **`--http-method=POST`** — required by the `:run` endpoint.
+- **`--oidc-service-account-email`** — Scheduler signs the outgoing
+  request with an OIDC token *minted as this service account*. Cloud
+  Run sees the token, looks up the SA's IAM, decides yes/no.
+- **`--oidc-token-audience`** — the audience claim Scheduler bakes
+  into the token. Cloud Run requires it match its own URL.
+
+### IAM minimum for the invoker SA
+
+```sh
+gcloud run jobs add-iam-policy-binding $JOB \
+    --region=$REGION --project=$PROJECT \
+    --member="serviceAccount:$INVOKER_SA_EMAIL" \
+    --role=roles/run.invoker
+```
+
+Note this binds **on the Job**, not on the project. The SA can invoke
+*this* job, nothing else. If a future malicious workflow steals the
+SA, the worst it can do is re-trigger the sync.
+
+### Smoke test the chain
+
+Manually run the job:
+
+```sh
+gcloud run jobs execute $JOB --region=$REGION --wait --project=$PROJECT
+# → Execution [stadera-sync-...]: SUCCEEDED (took 12s)
+```
+
+Trigger via Scheduler (without waiting for the cron):
+
+```sh
+gcloud scheduler jobs run stadera-sync-daily --location=$REGION --project=$PROJECT
+```
+
+Then check the execution:
+
+```sh
+gcloud run jobs executions list --job=$JOB --region=$REGION --project=$PROJECT --limit=5
+```
+
+The most recent execution should be `SUCCEEDED`. If it's `FAILED`,
+inspect logs via `gcloud beta run jobs executions describe <id>` or
+the Cloud Console "Executions" tab on the Job.
+
+### Common failure: missing `WITHINGS_TOKEN_KEY` mismatch
+
+The token key encrypts Withings refresh tokens at rest. If the value
+in GitHub Secrets differs from what `make pair` used locally, sync
+fails to decrypt and bails with `decryption failed`. Fix: rerun
+`make pair` with the production key (or rotate every paired user).
+
 ## References
 
 - [stadera-web walkthrough](https://github.com/MicheleBellitti/stadera-web/blob/main/.claude/docs/deploy-gcp-walkthrough.md) — the long version of WIF
 - [Cloud Run env vars + secrets](https://cloud.google.com/run/docs/configuring/services/environment-variables)
+- [Cloud Run Jobs reference](https://cloud.google.com/run/docs/create-jobs)
+- [Cloud Scheduler with OIDC](https://cloud.google.com/scheduler/docs/http-target-auth)
 - [Distroless images](https://github.com/GoogleContainerTools/distroless) — what the runtime stage uses
 - [cargo-chef](https://github.com/LukeMathWalker/cargo-chef) — Rust dep caching for Docker
