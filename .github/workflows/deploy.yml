@@ -10,7 +10,11 @@
 #   - Workload Identity Pool provider scoped to this repo
 #     (MicheleBellitti/Stadera) — separate from the web provider
 #
-# GitHub variables (Settings → Secrets and variables → Actions → Variables):
+# All vars/secrets below live under the `prod` GitHub Environment
+# (Settings → Environments → prod). The job binds to it via
+# `environment: prod`, otherwise vars.*/secrets.* resolve to empty.
+#
+# Variables (Environment → prod → Variables):
 #   GCP_PROJECT             e.g. stadera-prod
 #   GCP_REGION              e.g. europe-west1
 #   ARTIFACT_REGISTRY_REPO  e.g. stadera
@@ -19,7 +23,7 @@
 #   GOOGLE_CLIENT_ID        OAuth client ID (public)
 #   GOOGLE_REDIRECT_URL     ${BACKEND_URL}/auth/google/callback
 #
-# GitHub secrets:
+# Secrets (Environment → prod → Secrets):
 #   WIF_PROVIDER            projects/<num>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
 #   WIF_SERVICE_ACCOUNT     stadera-api-deployer@stadera-prod.iam.gserviceaccount.com
 #   DATABASE_URL            Neon Postgres connection string
@@ -52,6 +56,10 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Bind to the GitHub Environment that owns the deploy vars/secrets
+    # (WIF_*, GCP_*, DATABASE_URL, ...). Without this, vars.*/secrets.*
+    # only resolve at repository scope and end up empty.
+    environment: prod
     # Cold cargo-chef build is ~5 min, plus push + deploy. 30 min is
     # generous headroom; warm builds finish in ~2 min total.
     timeout-minutes: 30
