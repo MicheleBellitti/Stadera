@@ -1,10 +1,12 @@
-# Input variables. Default values match the live infra so
-# `terraform apply` without overrides reproduces what's running.
+# Input variables. No defaults for project-specific values — the
+# public repo doesn't ship anyone's project ID or owner email. Pass
+# them via `terraform.tfvars` (gitignored) or `-var key=value` on
+# the command line. Generic infrastructure choices (region, domain
+# pattern) keep their defaults.
 
 variable "project_id" {
-  description = "GCP project ID."
+  description = "GCP project ID. Required."
   type        = string
-  default     = "stadera-494515"
 }
 
 variable "region" {
@@ -14,26 +16,22 @@ variable "region" {
 }
 
 variable "github_repo_backend" {
-  description = "GitHub repo allowed to deploy the backend via WIF (owner/repo)."
+  description = "GitHub repo allowed to deploy the backend via WIF (owner/repo). Required."
   type        = string
-  default     = "MicheleBellitti/Stadera"
 }
 
 variable "github_repo_frontend" {
-  description = "GitHub repo allowed to deploy the frontend via WIF."
+  description = "GitHub repo allowed to deploy the frontend via WIF (owner/repo). Required."
   type        = string
-  default     = "MicheleBellitti/stadera-web"
 }
 
 variable "domain" {
-  description = "Custom domain root. Subdomains api/app are mapped under it."
+  description = "Custom domain root. Subdomains api/app are mapped under it. Required."
   type        = string
-  default     = "stadera.org"
 }
 
 variable "sync_user_email" {
-  description = "Email of the user whose Withings data the daily sync pulls."
+  description = "Email of the user whose Withings data the daily sync pulls. Required."
   type        = string
-  default     = "michelebellitti272@gmail.com"
-  sensitive   = false
+  sensitive   = true
 }

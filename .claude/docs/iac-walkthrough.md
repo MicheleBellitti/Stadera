@@ -47,12 +47,12 @@ Stadera uses two:
 
 ```hcl
 provider "google" {
-  project = "stadera-494515"
+  project = "<your-project-id>"
   region  = "europe-west1"
 }
 
 provider "google-beta" {
-  project = "stadera-494515"
+  project = "<your-project-id>"
   region  = "europe-west1"
 }
 ```
@@ -153,7 +153,7 @@ recreating them.
 
 ```sh
 terraform import google_artifact_registry_repository.stadera \
-    projects/stadera-494515/locations/europe-west1/repositories/stadera
+    projects/<your-project-id>/locations/europe-west1/repositories/stadera
 ```
 
 After import, the resource is **in state** but the **.tf might not
@@ -218,7 +218,7 @@ Stadera (single env), we use them mostly for documentation: each
 variable "project_id" {
   description = "GCP project ID."
   type        = string
-  default     = "stadera-494515"
+  default     = "<your-project-id>"
 }
 ```
 

@@ -8,6 +8,13 @@
 # Plan files contain credentials.
 *.tfplan
 
+# Auto-loaded varfile for project-specific values (project ID,
+# repo names, domain, sync_user_email). Auto-loaded by Terraform.
+# Must NOT be committed — these values are environment-specific
+# and the public repo doesn't ship anyone's defaults.
+terraform.tfvars
+*.auto.tfvars
+
 # Local-only override files. Useful for `terraform.local.tfvars` to
 # stash overrides that shouldn't end up in CI.
 *.local.tfvars
