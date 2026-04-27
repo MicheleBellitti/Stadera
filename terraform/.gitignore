@@ -1,0 +1,17 @@
+# Local state files — should never be committed. Real state lives in
+# the GCS backend (see main.tf).
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Plan files contain credentials.
+*.tfplan
+
+# Local-only override files. Useful for `terraform.local.tfvars` to
+# stash overrides that shouldn't end up in CI.
+*.local.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
