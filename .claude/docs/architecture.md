@@ -113,10 +113,10 @@ stadera/
 
 ### Cloud (M7 — partially resolved)
 
-- **GCP project**: `stadera-prod` (single project, single env — matches the single-env decision).
-- **Neon layout**: 1 project `stadera`, default `main` branch (Neon's copy-on-write branches), database `stadera`, dedicated role `stadera_app` (least privilege, not the `neondb_owner`). Neon branching available for preview envs in the future, out-of-scope for now.
-- **Custom domain** vs `.run.app`: still open. Decide in M7.
-- **Preview envs**: Vercel previews on frontend PRs; backend stays single-env (feature branches test locally against Docker).
+- **GCP project**: single project, single env — matches the single-env decision. Concrete project ID kept out of the public repo (see operational wiki).
+- **Neon layout**: 1 project, default `main` branch (Neon's copy-on-write branches), dedicated role with least privilege (not `neondb_owner`). Branching available for preview envs in the future, out-of-scope for now.
+- **Custom domain**: dedicated subdomain pair on a personal `.org` (DNS via Cloudflare, TLS auto-managed by Cloud Run). Cookie scope `Domain=.<root>` shared across api / app subdomains.
+- **Preview envs**: single-env for now (feature branches test locally against Docker).
 
 ## Conventions (quick reference)
 

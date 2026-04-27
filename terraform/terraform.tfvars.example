@@ -1,0 +1,15 @@
+# Copy this file to `terraform.tfvars` (gitignored) and fill in
+# project-specific values. Terraform auto-loads `terraform.tfvars`
+# on `plan` / `apply` — no `-var-file=` flag needed.
+#
+# Alternatively, pass values inline:
+#   terraform plan -var project_id=your-id -var domain=your.domain ...
+
+# project_id           = ""
+# github_repo_backend  = "owner/repo"     # e.g. "AcmeCorp/stadera"
+# github_repo_frontend = "owner/repo-web"
+# domain               = "example.org"
+# sync_user_email      = "you@example.com"
+
+# Optional, has a default:
+# region = "europe-west1"

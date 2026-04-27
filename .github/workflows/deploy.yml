@@ -5,7 +5,7 @@
 #
 # One-time GCP setup (see README "Deploy" section for the full script):
 #   - Artifact Registry repo `stadera` in $GCP_REGION (shared with web)
-#   - Service account `stadera-api-deployer@stadera-prod.iam` with
+#   - Service account `stadera-api-deployer@your-gcp-project.iam` with
 #     run.admin, artifactregistry.writer, iam.serviceAccountUser
 #   - Workload Identity Pool provider scoped to this repo
 #     (MicheleBellitti/Stadera) — separate from the web provider
@@ -15,7 +15,7 @@
 # `environment: prod`, otherwise vars.*/secrets.* resolve to empty.
 #
 # Variables (Environment → prod → Variables):
-#   GCP_PROJECT              e.g. stadera-prod
+#   GCP_PROJECT              e.g. your-gcp-project
 #   GCP_REGION               e.g. europe-west1
 #   ARTIFACT_REGISTRY_REPO   e.g. stadera
 #   CLOUD_RUN_SERVICE        e.g. stadera-api
@@ -35,7 +35,7 @@
 #
 # Secrets (Environment → prod → Secrets):
 #   WIF_PROVIDER             projects/<num>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
-#   WIF_SERVICE_ACCOUNT      stadera-api-deployer@stadera-prod.iam.gserviceaccount.com
+#   WIF_SERVICE_ACCOUNT      stadera-api-deployer@your-gcp-project.iam.gserviceaccount.com
 #   DATABASE_URL             Neon Postgres connection string
 #   GOOGLE_CLIENT_SECRET
 #   WITHINGS_CLIENT_SECRET   Withings OAuth client secret (for sync job)

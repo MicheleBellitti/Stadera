@@ -1,7 +1,9 @@
-.PHONY: help db-up db-down db-reset db-migrate db-psql sqlx-prepare check pair sync docker-build docker-run
+.PHONY: help db-up db-down db-reset db-migrate db-psql sqlx-prepare check pair sync docker-build docker-run require-user-email
 
-# Default user-email for pair / sync. Override with: make pair USER_EMAIL=alice@example.com
-USER_EMAIL ?= michelebellitti272@gmail.com
+# Required for `make pair` / `make sync`. Set explicitly on the command
+# line: `make pair USER_EMAIL=alice@example.com`. No default — the email
+# is per-user, not a project-wide constant.
+USER_EMAIL ?=
 
 # Image tag for local docker builds. CI uses the GAR path directly.
 IMAGE ?= stadera-api:local
@@ -53,11 +55,18 @@ db-psql:
 sqlx-prepare:
 	DATABASE_URL=$(LOCAL_DATABASE_URL) cargo sqlx prepare --workspace -- --all-targets
 
-pair:
+pair: require-user-email
 	cargo run -p stadera-withings --bin pair -- --user-email $(USER_EMAIL)
 
-sync:
+sync: require-user-email
 	cargo run -p stadera-jobs -- sync --user-email $(USER_EMAIL)
+
+require-user-email:
+	@if [ -z "$(USER_EMAIL)" ]; then \
+		echo "Error: USER_EMAIL is required."; \
+		echo "Usage: make pair USER_EMAIL=you@example.com"; \
+		exit 1; \
+	fi
 
 check:
 	cargo fmt --all -- --check
