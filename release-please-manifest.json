@@ -1,7 +1,7 @@
 {
-  "crates/api":      "0.1.0",
-  "crates/domain":   "0.1.0",
-  "crates/jobs":     "0.1.0",
-  "crates/storage":  "0.1.0",
-  "crates/withings": "0.1.0"
+  "crates/api": "0.2.0",
+  "crates/domain": "0.2.0",
+  "crates/jobs": "0.2.0",
+  "crates/storage": "0.2.0",
+  "crates/withings": "0.2.0"
 }
