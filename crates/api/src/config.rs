@@ -13,6 +13,19 @@ pub struct Config {
     /// `true` in production (HTTPS) — sets `Secure` flag on cookies.
     /// `false` in dev (HTTP localhost).
     pub cookie_secure: bool,
+    /// Optional explicit `Domain` attribute on cookies.
+    ///
+    /// - `None` (env var unset) → host-only cookies. The browser only
+    ///   sends them back to the exact host that issued them. This is
+    ///   the right default for dev (FE+BE on `localhost`, port-agnostic
+    ///   so cookies are shared) and for any single-host production.
+    /// - `Some(".stadera.org")` → cookie shared across every subdomain.
+    ///   Required when FE and BE are on different subdomains of a
+    ///   common parent (e.g. `app.stadera.org` + `api.stadera.org`).
+    ///   Browsers reject `Domain` values not matching the host that's
+    ///   setting the cookie, so the value MUST be a parent of the
+    ///   backend's hostname.
+    pub cookie_domain: Option<String>,
     pub google: GoogleConfig,
 }
 
@@ -43,6 +56,13 @@ impl Config {
             .map(|s| s.eq_ignore_ascii_case("true") || s == "1")
             .unwrap_or(false);
 
+        // Treat empty string the same as unset — useful when the env
+        // var is plumbed through CI / deploy infra that always
+        // expands `${{ vars.X }}` even when X has no value.
+        let cookie_domain = std::env::var("COOKIE_DOMAIN")
+            .ok()
+            .filter(|s| !s.is_empty());
+
         let google = GoogleConfig {
             client_id: std::env::var("GOOGLE_CLIENT_ID")
                 .context("GOOGLE_CLIENT_ID env var is required")?,
@@ -57,6 +77,7 @@ impl Config {
             bind_addr,
             frontend_origin,
             cookie_secure,
+            cookie_domain,
             google,
         })
     }

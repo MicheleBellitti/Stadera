@@ -305,6 +305,58 @@ in GitHub Secrets differs from what `make pair` used locally, sync
 fails to decrypt and bails with `decryption failed`. Fix: rerun
 `make pair` with the production key (or rotate every paired user).
 
+## Custom domain mapping (cookie cross-subdomain)
+
+The auto-generated `*.run.app` URLs work, but session cookies don't
+cross between two `*.run.app` subdomains (browsers won't share cookies
+across hosts that aren't a parent/child relationship through the
+public-suffix list — and `run.app` is a public suffix). With FE on
+`stadera-web-X.run.app` and BE on `stadera-api-Y.run.app`, the BE-set
+cookie is invisible to the FE host → /me from FE always sees 401.
+
+A custom domain solves it:
+
+```sh
+DOMAIN=stadera.org   # owned by you, DNS managed by Cloudflare or similar
+
+gcloud beta run domain-mappings create \
+    --service=stadera-api --domain="api.$DOMAIN" \
+    --region=$REGION --project=$PROJECT
+
+gcloud beta run domain-mappings create \
+    --service=stadera-web --domain="app.$DOMAIN" \
+    --region=$REGION --project=$PROJECT
+```
+
+`gcloud` prints CNAME records to add to your DNS provider:
+
+```
+api.stadera.org   CNAME   ghs.googlehosted.com
+app.stadera.org   CNAME   ghs.googlehosted.com
+```
+
+DNS propagation: ~5-30 min. Cloud Run auto-provisions Let's Encrypt
+TLS certs once the CNAMEs resolve correctly (~5 min more).
+
+After DNS + TLS:
+
+1. Set GitHub Variable `COOKIE_DOMAIN=.stadera.org`. The leading dot
+   isn't strictly required by RFC 6265bis but many HTTP clients still
+   prefer it for "shared across all subdomains" semantics.
+2. Set `FRONTEND_ORIGIN=https://app.stadera.org` and
+   `GOOGLE_REDIRECT_URL=https://api.stadera.org/auth/google/callback`.
+3. Add `https://api.stadera.org/auth/google/callback` to the Google
+   OAuth Console authorized redirect URIs.
+4. Update the frontend's `BACKEND_API_URL` GitHub Variable to
+   `https://api.stadera.org`.
+5. Re-trigger both repos' deploy workflows so the new env values are
+   picked up.
+
+After that, sign-in on `https://app.stadera.org` sets a cookie with
+`Domain=.stadera.org` → browser sends it to both `app.*` and `api.*`
+→ the FE's server-side `/me` gate works and the user lands on
+`/dashboard`.
+
 ## References
 
 - [stadera-web walkthrough](https://github.com/MicheleBellitti/stadera-web/blob/main/.claude/docs/deploy-gcp-walkthrough.md) — the long version of WIF

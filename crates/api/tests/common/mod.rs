@@ -18,6 +18,7 @@ pub fn test_config() -> Config {
         bind_addr: "127.0.0.1:0".parse().unwrap(),
         frontend_origin: "http://localhost:3000".to_string(),
         cookie_secure: false,
+        cookie_domain: None,
         google: GoogleConfig {
             client_id: "test-client-id".to_string(),
             client_secret: "test-client-secret".to_string(),
