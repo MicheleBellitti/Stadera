@@ -42,6 +42,7 @@ async fn start(
     let jar = jar.add(build_oauth_state_cookie(
         csrf.secret().to_string(),
         state.config.cookie_secure,
+        state.config.cookie_domain.as_deref(),
     ));
 
     Ok((jar, Redirect::to(auth_url.as_str())))
@@ -96,11 +97,16 @@ async fn callback(
         .await?;
 
     // 5. Swap cookies: drop the oauth state cookie, set the session cookie.
+    let cookie_domain = state.config.cookie_domain.as_deref();
     let jar = jar
-        .add(clear_oauth_state_cookie(state.config.cookie_secure))
+        .add(clear_oauth_state_cookie(
+            state.config.cookie_secure,
+            cookie_domain,
+        ))
         .add(build_session_cookie(
             session.id.to_string(),
             state.config.cookie_secure,
+            cookie_domain,
         ));
 
     // 6. Hand the user back to the frontend.
@@ -119,6 +125,9 @@ async fn logout(
         let _ = storage.sessions().delete(session_id).await;
     }
 
-    let jar = jar.add(clear_session_cookie(state.config.cookie_secure));
+    let jar = jar.add(clear_session_cookie(
+        state.config.cookie_secure,
+        state.config.cookie_domain.as_deref(),
+    ));
     Ok((jar, Redirect::to(&state.config.frontend_origin)))
 }

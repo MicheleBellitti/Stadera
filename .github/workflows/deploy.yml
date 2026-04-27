@@ -23,7 +23,12 @@
 #   SYNC_USER_EMAIL          email of the user whose Withings data to sync
 #                            (single-tenant for now; multi-user pulls all
 #                            paired users when we refactor sync)
-#   FRONTEND_ORIGIN          e.g. https://stadera-web-XXX.europe-west1.run.app
+#   FRONTEND_ORIGIN          e.g. https://app.stadera.org
+#   COOKIE_DOMAIN            e.g. .stadera.org — required when FE and BE
+#                            are on different subdomains of a common
+#                            parent. Leave unset / empty for single-host
+#                            deployments. Must be a parent of the
+#                            backend's actual hostname.
 #   GOOGLE_CLIENT_ID         OAuth client ID (public)
 #   GOOGLE_REDIRECT_URL      ${BACKEND_URL}/auth/google/callback
 #   WITHINGS_CLIENT_ID       Withings OAuth client ID
@@ -119,6 +124,7 @@ jobs:
           # Secret Manager and uses `secrets:` instead of `env_vars:`.
           env_vars: |
             FRONTEND_ORIGIN=${{ vars.FRONTEND_ORIGIN }}
+            COOKIE_DOMAIN=${{ vars.COOKIE_DOMAIN }}
             GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
             GOOGLE_REDIRECT_URL=${{ vars.GOOGLE_REDIRECT_URL }}
             COOKIE_SECURE=true

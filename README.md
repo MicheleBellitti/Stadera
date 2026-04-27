@@ -140,9 +140,15 @@ In *Settings → Secrets and variables → Actions*:
 - `CLOUD_RUN_SYNC_JOB` — `stadera-sync` (Cloud Run Job for daily sync)
 - `SYNC_USER_EMAIL` — email of the user whose Withings data the daily
   sync pulls (single-tenant for now)
-- `FRONTEND_ORIGIN` — public URL of the deployed frontend Cloud Run service
+- `FRONTEND_ORIGIN` — public URL of the deployed frontend
+  (e.g. `https://app.stadera.org`)
+- `COOKIE_DOMAIN` — `.stadera.org` once you map FE + BE under the same
+  custom domain. Leave unset for single-host (auto-generated
+  `*.run.app`) deployments. Required when FE and BE are on different
+  subdomains so the session cookie is shared.
 - `GOOGLE_CLIENT_ID` — Google OAuth client ID (public)
 - `GOOGLE_REDIRECT_URL` — `${BACKEND_URL}/auth/google/callback`
+  (e.g. `https://api.stadera.org/auth/google/callback`)
 - `WITHINGS_CLIENT_ID` — Withings OAuth client ID
 
 **Secrets** (real credentials):
